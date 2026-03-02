@@ -60,6 +60,7 @@ echo -e "${GREEN}📁 创建目录结构...${NC}"
 mkdir -p .claude/rules/stacks
 mkdir -p .claude/hooks
 mkdir -p .claude/agents
+mkdir -p .claude/skills
 mkdir -p docs
 
 # ─── Copy core rules (always applied) ───
@@ -112,6 +113,16 @@ cp "$SCRIPT_DIR/templates/.claude/hooks/post-error-remind.sh" .claude/hooks/
 cp "$SCRIPT_DIR/templates/.claude/hooks/streak-breaker.sh" .claude/hooks/
 chmod +x .claude/hooks/*.sh
 
+# ─── Check jq availability ───
+if ! command -v jq &>/dev/null; then
+    echo ""
+    echo -e "${YELLOW}⚠️  未检测到 jq — Hooks 会使用 grep/sed 回退解析，但推荐安装 jq 以获得更可靠的 JSON 解析${NC}"
+    echo "  macOS:   brew install jq"
+    echo "  Ubuntu:  sudo apt install jq"
+    echo "  Arch:    sudo pacman -S jq"
+    echo ""
+fi
+
 # ─── Install settings.json ───
 cp "$SCRIPT_DIR/templates/.claude/settings.json" .claude/settings.json
 
@@ -119,6 +130,11 @@ cp "$SCRIPT_DIR/templates/.claude/settings.json" .claude/settings.json
 echo -e "${GREEN}🤖 安装子代理...${NC}"
 cp "$SCRIPT_DIR/templates/.claude/agents/reviewer.md" .claude/agents/
 cp "$SCRIPT_DIR/templates/.claude/agents/investigator.md" .claude/agents/
+
+# ─── Install skills ───
+echo -e "${GREEN}⚡ 安装 Skills...${NC}"
+cp -r "$SCRIPT_DIR/templates/.claude/skills/commit" .claude/skills/
+echo "   ✓ /commit — 智能提交（测试 → 更新记忆 → 提交）"
 
 # ─── Generate CLAUDE.md ───
 echo -e "${GREEN}📝 生成 CLAUDE.md...${NC}"
@@ -130,6 +146,19 @@ if [ ! -f "docs/progress.md" ]; then
 fi
 if [ ! -f "docs/debug-log.md" ]; then
     cp "$SCRIPT_DIR/templates/docs/debug-log.md" docs/
+fi
+
+# ─── Install auto memory ───
+echo -e "${GREEN}🧠 安装 Auto Memory...${NC}"
+# Claude Code auto memory 路径：~/.claude/projects/-<项目绝对路径用-连接>/memory/
+MEMORY_PROJECT_KEY=$(echo "$PROJECT_DIR" | sed 's|/|-|g')
+MEMORY_DIR="$HOME/.claude/projects/${MEMORY_PROJECT_KEY}/memory"
+mkdir -p "$MEMORY_DIR"
+if [ ! -f "$MEMORY_DIR/MEMORY.md" ]; then
+    cp "$SCRIPT_DIR/templates/memory/MEMORY.md" "$MEMORY_DIR/MEMORY.md"
+    echo "   ✓ Memory 已安装到 $MEMORY_DIR/MEMORY.md"
+else
+    echo -e "   ${YELLOW}已有 MEMORY.md，跳过（不覆盖）${NC}"
 fi
 
 # ─── Install global rules (optional) ───
@@ -159,9 +188,11 @@ echo -e "  ${GREEN}CLAUDE.md${NC}                    ← 项目规则（请填�
 echo -e "  ${GREEN}.claude/rules/${NC}               ← 自动注入规则"
 echo -e "  ${GREEN}.claude/hooks/${NC}               ← 强制执行钩子"
 echo -e "  ${GREEN}.claude/agents/${NC}              ← 审查员 & 调查员子代理"
+echo -e "  ${GREEN}.claude/skills/commit/${NC}       ← /commit 智能提交"
 echo -e "  ${GREEN}.claude/settings.json${NC}        ← Hooks 配置"
 echo -e "  ${GREEN}docs/progress.md${NC}             ← 进度记录（Claude 维护）"
 echo -e "  ${GREEN}docs/debug-log.md${NC}            ← 调试日志（Claude 维护）"
+echo -e "  ${GREEN}~/.claude/projects/.../memory/${NC} ← Auto Memory（跨会话记忆）"
 echo ""
 echo -e "${YELLOW}下一步:${NC}"
 echo "  1. 编辑 CLAUDE.md，填写 [待填写] 的项目信息"
