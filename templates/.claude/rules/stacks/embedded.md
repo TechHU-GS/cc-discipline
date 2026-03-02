@@ -1,29 +1,24 @@
----
-globs: "**/*.c,**/*.h,**/*.cpp,**/*.hpp,**/*.ld,**/*.s,**/*.S,**/Makefile,**/CMakeLists.txt"
-description: "嵌入式开发规则 — 编辑 C/C++ 和构建文件时自动注入"
----
+## Embedded Development Discipline
 
-## 嵌入式开发纪律
+### Resource Awareness
+- **Memory is limited** — Consider RAM/ROM budget for every allocation. Avoid malloc, prefer static allocation
+- **Stack depth** — Be extremely cautious with recursion; no deep call chains in ISRs
+- **Peripherals are shared resources** — Register access must consider concurrency and interrupt safety
+- **Timing constraints** — Interrupt response, communication timeouts, watchdog feeding must not be blocked
 
-### 资源意识
-- **内存有限** — 每次分配都要考虑 RAM/ROM 预算。避免 malloc，优先静态分配
-- **栈深度** — 递归要极度谨慎，ISR 中禁止深调用链
-- **外设是共享资源** — 访问寄存器要考虑并发和中断安全
-- **时序约束** — 中断响应、通信超时、看门狗喂狗不能被阻塞
+### Mandatory Checks Before Modification
+- Involves interrupt handling? → Confirm whether `volatile` is needed, confirm critical section protection
+- Involves peripheral registers? → Confirm register addresses and bit fields against the datasheet
+- Involves memory layout? → Confirm linker script and section assignments
+- Involves communication protocol? → Confirm endianness, alignment, timeout handling
 
-### 修改前强制检查
-- 涉及中断处理？→ 确认是否需要 `volatile`，确认临界区保护
-- 涉及外设寄存器？→ 确认寄存器地址和位域，对照 datasheet
-- 涉及内存布局？→ 确认 linker script 和 section 分配
-- 涉及通信协议？→ 确认字节序、对齐、超时处理
+### Prohibited
+- No blocking functions in ISRs (printf, malloc, mutex lock)
+- No assuming `sizeof(int)` — use fixed-width types like `uint32_t` explicitly
+- No modifying register configurations without understanding the hardware behavior
+- No ignoring compiler warnings — in embedded, warnings are often potential hardware issues
 
-### 禁止事项
-- 禁止在 ISR 中调用阻塞函数（printf, malloc, mutex lock）
-- 禁止假设 `sizeof(int)` 的值 — 明确使用 `uint32_t` 等固定宽度类型
-- 禁止在不理解硬件行为的情况下修改寄存器配置
-- 禁止忽略编译器 warning — 嵌入式中 warning 往往是潜在的硬件问题
-
-### 调试特殊注意
-- 问题可能是硬件导致的（电源、信号完整性、EMI）— 不要只在软件里找原因
-- 时序相关的 bug 可能无法稳定复现 — 记录复现条件和频率
-- 优化等级会影响行为 — 确认 -O0 和 -O2 下行为是否一致
+### Debugging Notes
+- The problem may be hardware-related (power, signal integrity, EMI) — don't only look in software
+- Timing-related bugs may not reproduce reliably — record reproduction conditions and frequency
+- Optimization levels affect behavior — confirm whether behavior is consistent between -O0 and -O2

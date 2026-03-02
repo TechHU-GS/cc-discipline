@@ -47,14 +47,14 @@ if echo "$OUTPUT" | grep -qi "segfault\|segmentation fault\|bus error\|core dump
 fi
 
 if [ "$HAS_ERROR" = true ]; then
-    REMINDER="🔴 检测到错误输出。按调试纪律执行：1.不要立即修改代码 2.先完整理解错误信息 3.列出可能的原因(≥2个) 4.记录到docs/debug-log.md 5.验证假设后再动手修复"
+    REMINDER="ERROR DETECTED. Follow debugging discipline: 1. Do NOT modify code immediately 2. Fully understand the error message 3. List possible causes (>=2) 4. Record in docs/debug-log.md 5. Verify hypotheses before fixing"
 
     if [ "$ERROR_TYPE" = "test" ]; then
-        REMINDER="$REMINDER。⚠️ 测试失败 — 不要改测试来通过！先确认是代码bug还是测试过时。"
+        REMINDER="$REMINDER. WARNING: Test failure — do NOT change the test to make it pass! First determine if it's a code bug or an outdated test."
     fi
 
     if [ "$ERROR_TYPE" = "crash" ]; then
-        REMINDER="$REMINDER。⚠️ 崩溃/段错误 — 可能涉及内存问题。检查指针、数组越界、未初始化变量。"
+        REMINDER="$REMINDER. WARNING: Crash/segfault — may involve memory issues. Check pointers, array bounds, uninitialized variables."
     fi
 
     # exit 2 + stderr: inject message into Claude's context

@@ -1,47 +1,51 @@
 # cc-discipline
 
-**Claude Code 项目纪律框架** — 让 AI 编码助手在复杂任务中保持专注和纪律。
+**Discipline framework for Claude Code** — Keep your AI coding assistant focused and disciplined during complex tasks.
 
-解决 Claude Code 在长对话、复杂任务中常见的问题：
-- 🎯 思路跑偏、丢失主线目标
-- 🔨 打地鼠式修补症状
-- ⚡ 急于锁定第一个解释
-- 🧠 compact 后丢失关键上下文和原则
-- 🔄 反复犯同样的错误
+[中文文档](README.zh-CN.md)
 
-## 架构：三层防线
+Solves common problems when using Claude Code in long conversations and complex tasks:
+- Losing focus and drifting from the main objective
+- Whack-a-mole symptom patching
+- Locking onto the first explanation too quickly
+- Losing critical context and principles after compact
+- Repeating the same mistakes
+
+## Architecture: Three Lines of Defense
 
 ```
 ┌─────────────────────────────────────────┐
-│  Layer 3: Subagents（独立判断）          │
-│  reviewer — 独立 context 审查方案       │
-│  investigator — 隔离调研不污染主对话    │
+│  Layer 3: Subagents (independent judgment) │
+│  reviewer — audits plans in independent context │
+│  investigator — isolated research, clean context │
 ├─────────────────────────────────────────┤
-│  Layer 2: Hooks（代码强制）             │
-│  pre-edit-guard — 编辑前检查纪律       │
-│  streak-breaker — 检测打地鼠模式       │
-│  post-error-remind — 错误后提醒流程    │
+│  Layer 2: Hooks (code-enforced)           │
+│  pre-edit-guard — pre-edit discipline check │
+│  streak-breaker — detects mole-whacking   │
+│  post-error-remind — post-error reminders │
 ├─────────────────────────────────────────┤
-│  Layer 1: Rules（自动注入）             │
-│  core-principles — 核心原则            │
-│  debugging — 调试纪律                  │
-│  before-edit — 修改前检查              │
-│  context-mgmt — 上下文管理             │
-│  no-mole-whacking — 反打地鼠           │
-│  stacks/* — 技术栈特有规则             │
+│  Layer 1: Rules (auto-injected)           │
+│  core-principles — core principles        │
+│  debugging — debugging discipline         │
+│  before-edit — pre-edit checklist         │
+│  context-mgmt — context management        │
+│  no-mole-whacking — anti-mole-whacking    │
+│  phase-discipline — phase awareness       │
+│  multi-task — multi-task gate control     │
+│  stacks/* — tech stack specific rules     │
 ├─────────────────────────────────────────┤
-│  Foundation: CLAUDE.md + docs/          │
-│  项目信息 + 进度记录 + 调试日志         │
+│  Foundation: CLAUDE.md + docs/            │
+│  Project info + progress log + debug log  │
 └─────────────────────────────────────────┘
 ```
 
-**Rules** = 贴在它眼前（自动注入，按路径触发）  
-**Hooks** = 锁住它的手（代码级强制，可阻止操作）  
-**Subagents** = 派人盯着它（独立 context 审查，不被主对话惯性影响）
+**Rules** = posted in front of its eyes (auto-injected, triggered by file path)
+**Hooks** = lock its hands (code-level enforcement, can block operations)
+**Subagents** = someone watching over it (independent context review, not influenced by main conversation momentum)
 
-## 快速开始
+## Quick Start
 
-### 方法 1: 克隆 + 初始化脚本
+### Method 1: Clone + Init Script
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/cc-discipline.git ~/.cc-discipline
@@ -51,157 +55,161 @@ cd your-project
 bash ~/.cc-discipline/init.sh
 ```
 
-### 方法 2: GitHub Template
+### Method 2: GitHub Template
 
-1. 点击本仓库的 **Use this template** 按钮
-2. 创建新项目后，编辑 `CLAUDE.md` 填写项目信息
+1. Click the **Use this template** button on this repo
+2. After creating the new project, edit `CLAUDE.md` to fill in project info
 
-### 方法 3: 只安装全局规则
+### Method 3: Global Rules Only
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/cc-discipline.git /tmp/cc-discipline
 cp /tmp/cc-discipline/global/CLAUDE.md ~/.claude/CLAUDE.md
 ```
 
-## 文件结构
+## File Structure
 
 ```
 your-project/
-├── CLAUDE.md                          # 项目特有信息（你维护）
+├── CLAUDE.md                          # Project-specific info (you maintain)
 ├── .claude/
-│   ├── settings.json                  # Hooks 配置
+│   ├── settings.json                  # Hooks configuration
 │   ├── rules/
-│   │   ├── 00-core-principles.md      # 核心工作原则
-│   │   ├── 01-debugging.md            # 调试纪律
-│   │   ├── 02-before-edit.md          # 修改前检查
-│   │   ├── 03-context-mgmt.md         # 上下文管理
-│   │   ├── 04-no-mole-whacking.md     # 反打地鼠
-│   │   └── stacks/                    # 技术栈特有规则
-│   │       ├── rtl.md                 #   RTL / IC 设计
-│   │       ├── embedded.md            #   嵌入式 C/C++
+│   │   ├── 00-core-principles.md      # Core working principles
+│   │   ├── 01-debugging.md            # Debugging discipline
+│   │   ├── 02-before-edit.md          # Pre-edit checklist
+│   │   ├── 03-context-mgmt.md         # Context management
+│   │   ├── 04-no-mole-whacking.md     # Anti-mole-whacking
+│   │   ├── 05-phase-discipline.md     # Phase awareness
+│   │   ├── 06-multi-task.md           # Multi-task gate control
+│   │   └── stacks/                    # Tech stack specific rules
+│   │       ├── rtl.md                 #   RTL / IC design
+│   │       ├── embedded.md            #   Embedded C/C++
 │   │       ├── python.md              #   Python
 │   │       ├── js-ts.md               #   JavaScript/TypeScript
-│   │       └── mobile.md              #   移动端
+│   │       └── mobile.md              #   Mobile
 │   ├── hooks/
-│   │   ├── pre-edit-guard.sh          # 编辑前纪律检查
-│   │   ├── streak-breaker.sh          # 打地鼠检测（同文件编辑≥5次硬停止）
-│   │   └── post-error-remind.sh       # 错误后调试流程提醒
+│   │   ├── pre-edit-guard.sh          # Pre-edit discipline check
+│   │   ├── streak-breaker.sh          # Mole-whacking detection (hard stop at >=5 edits)
+│   │   └── post-error-remind.sh       # Post-error debugging reminder
 │   ├── agents/
-│   │   ├── reviewer.md                # 代码审查员（独立 context）
-│   │   └── investigator.md            # 代码调查员（隔离调研）
+│   │   ├── reviewer.md                # Code reviewer (independent context)
+│   │   └── investigator.md            # Code investigator (isolated research)
 │   └── skills/
-│       └── commit/SKILL.md            # /commit 智能提交
+│       └── commit/SKILL.md            # /commit smart commit
 ├── docs/
-│   ├── progress.md                    # 进度记录（Claude 维护）
-│   └── debug-log.md                   # 调试日志（Claude 维护）
+│   ├── progress.md                    # Progress log (maintained by Claude)
+│   └── debug-log.md                   # Debug log (maintained by Claude)
 └── ~/.claude/
-    └── CLAUDE.md                      # 全局通用纪律（可选）
+    └── CLAUDE.md                      # Global discipline (optional)
 ```
 
-## 各层详解
+## Layer Details
 
-### Rules（自动注入）
+### Rules (auto-injected)
 
-放在 `.claude/rules/` 下的 Markdown 文件会根据 `globs` 匹配自动注入到 Claude 的上下文中。
-Claude 无法选择性忽略这些规则——它们在操作匹配文件时会自动出现。
+Markdown files in `.claude/rules/` are auto-injected into Claude's context based on `globs` matching.
+Claude cannot selectively ignore these rules — they appear automatically when operating on matched files.
 
-**核心规则**（对所有文件生效）：
-- `00-core-principles.md` — 先理解再动手、不锁定第一解释、连续3次失败必须停下
-- `01-debugging.md` — 四阶段调试流程（收集→假设→验证→修复）
-- `03-context-mgmt.md` — 主动检查点、调研隔离、compact 策略
-- `04-no-mole-whacking.md` — 打地鼠检测和汇报模板
+**Core rules** (apply to all files):
+- `00-core-principles.md` — Understand before acting, don't lock onto first explanation, forced stop after 3 failures
+- `01-debugging.md` — Four-phase debugging process (gather → hypothesize → verify → fix)
+- `03-context-mgmt.md` — Proactive checkpoints, research isolation, compact strategy
+- `04-no-mole-whacking.md` — Mole-whacking detection and report template
+- `05-phase-discipline.md` — Phase awareness (research/plan/implement)
+- `06-multi-task.md` — Numbered tasks, sequential completion, confirmation gates
 
-**源码规则**（编辑 src/ 等目录时生效）：
-- `02-before-edit.md` — 修改前的 5 项强制检查
+**Source code rules** (triggered when editing src/ etc.):
+- `02-before-edit.md` — 5 mandatory pre-edit checks
 
-**技术栈规则**（按文件类型触发）：
-- `.v/.sv/.vhd` → RTL 规则（时序意识、CDC 检查、综合/仿真区分）
-- `.c/.h` → 嵌入式规则（资源意识、中断安全、volatile）
-- `.py` → Python 规则（类型标注、依赖管理、测试）
-- `.js/.ts/.tsx` → JS/TS 规则（类型安全、异步处理）
-- `.swift/.kt/.dart` → 移动端规则（主线程、生命周期、权限）
+**Tech stack rules** (triggered by file type):
+- `.v/.sv/.vhd` → RTL rules (timing awareness, CDC checks, synthesis/simulation distinction)
+- `.c/.h` → Embedded rules (resource awareness, interrupt safety, volatile)
+- `.py` → Python rules (type annotations, dependency management, testing)
+- `.js/.ts/.tsx` → JS/TS rules (type safety, async handling)
+- `.swift/.kt/.dart` → Mobile rules (main thread, lifecycle, permissions)
 
-### Hooks（代码强制）
+### Hooks (code-enforced)
 
-Hooks 是在 Claude 执行操作前/后自动运行的 shell 脚本。**exit 2 可以直接阻止操作**。
+Hooks are shell scripts that run automatically before/after Claude's operations. **exit 2 directly blocks the operation**.
 
-| Hook | 触发时机 | 作用 |
-|------|---------|------|
-| `pre-edit-guard.sh` | 编辑文件前 | 检查是否有未完成的调试流程 |
-| `streak-breaker.sh` | 编辑文件前 | 同文件编辑 ≥3 次警告，≥5 次硬停止 |
-| `post-error-remind.sh` | 执行命令后 | 检测到错误输出时提醒遵守调试纪律 |
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `pre-edit-guard.sh` | Before file edit | Checks for incomplete debugging process |
+| `streak-breaker.sh` | Before file edit | Warns at >=3 edits, hard stop at >=5 |
+| `post-error-remind.sh` | After command execution | Reminds debugging discipline when errors detected |
 
-**调整硬度**：编辑 hook 脚本中的 `exit` 返回值：
-- `exit 0` = 允许操作（可附带提醒信息）
-- `exit 1` = 报错但不阻止操作（hook 执行失败）
-- `exit 2` = 阻止操作，Claude 看到消息后会调整行为（硬停止）
+**Adjusting strictness**: edit the `exit` return values in hook scripts:
+- `exit 0` = allow operation (can attach reminder message)
+- `exit 1` = error but don't block operation (hook execution failure)
+- `exit 2` = block operation, Claude sees the message and adjusts behavior (hard stop)
 
-### Subagents（独立判断）
+### Subagents (independent judgment)
 
-| Agent | 用途 | 权限 |
-|-------|------|------|
-| `reviewer` | 审查修改方案是否合理 | 只读（Read, Grep, Glob） |
-| `investigator` | 深入调研代码库 | 只读 + Bash（仅限查询命令） |
+| Agent | Purpose | Permissions |
+|-------|---------|-------------|
+| `reviewer` | Reviews modification plans for soundness | Read-only (Read, Grep, Glob) |
+| `investigator` | Deep codebase research | Read-only + Bash (query commands only) |
 
-使用方式：
+Usage:
 ```
-让 reviewer 审查我的修改方案
-让 investigator 调查 src/auth/ 模块的实现
+Have reviewer audit my modification plan
+Have investigator research the src/auth/ module implementation
 ```
 
-## 自定义
+## Customization
 
-### 添加项目特有规则
+### Adding project-specific rules
 
 ```bash
 # Create a new rule
 cat > .claude/rules/my-rule.md << 'EOF'
 ---
 globs: "src/api/**/*"
-description: "API 层特有规则"
+description: "API layer specific rules"
 ---
-## API 修改规则
-- 所有 API 变更必须向后兼容
-- 新增 endpoint 必须有对应的 OpenAPI spec 更新
+## API Modification Rules
+- All API changes must be backwards-compatible
+- New endpoints must have corresponding OpenAPI spec updates
 EOF
 ```
 
-### 调整 Hook 灵敏度
+### Adjusting hook sensitivity
 
-编辑 `.claude/hooks/streak-breaker.sh`：
+Edit `.claude/hooks/streak-breaker.sh`:
 ```bash
 WARN_THRESHOLD=3    # Warning after N edits to same file
 STOP_THRESHOLD=5    # Hard block after N edits to same file
 ```
 
-### 添加新的子代理
+### Adding new subagents
 
 ```bash
 cat > .claude/agents/my-agent.md << 'EOF'
 ---
 name: my-agent
-description: "描述这个子代理做什么"
+description: "Describe what this subagent does"
 model: sonnet
 tools: Read, Grep, Glob
 ---
-你是 [角色描述]。你的职责是...
+You are [role description]. Your job is...
 EOF
 ```
 
 ## FAQ
 
-**Q: Rules 和 CLAUDE.md 有什么区别？**  
-A: CLAUDE.md 在对话开始时读取一次。Rules 是按文件路径匹配自动注入的——当 Claude 操作匹配 glob 的文件时，对应规则会自动出现在它的上下文中。Rules 更可靠，因为它们不依赖 Claude "记得去看"。
+**Q: What's the difference between Rules and CLAUDE.md?**
+A: CLAUDE.md is read once at conversation start. Rules are auto-injected by file path matching — when Claude operates on files matching a glob, the corresponding rules automatically appear in its context. Rules are more reliable because they don't depend on Claude "remembering to check".
 
-**Q: Hooks 会影响性能吗？**  
-A: 几乎不会。它们是轻量的 shell 脚本，执行时间通常 <100ms。
+**Q: Do Hooks affect performance?**
+A: Barely. They're lightweight shell scripts, typically executing in <100ms.
 
-**Q: 可以把 .claude/ 提交到 git 吗？**  
-A: 强烈建议提交。这样团队成员都能共享同一套纪律。注意 `.claude/settings.json` 中的 hooks 路径是相对路径，团队成员不需要额外配置。
+**Q: Should I commit .claude/ to git?**
+A: Strongly recommended. This way team members share the same discipline. Note that hook paths in `.claude/settings.json` use `$CLAUDE_PROJECT_DIR`, so team members don't need extra configuration.
 
-**Q: 和 devpace 等第三方工具冲突吗？**  
-A: 不冲突。本框架是纯文件级别的，不依赖任何第三方工具。可以和 devpace、Claude MPM 等工具并行使用。
+**Q: Does this conflict with third-party tools like devpace?**
+A: No. This framework is purely file-based and doesn't depend on any third-party tools. It can work alongside devpace, Claude MPM, and other tools.
 
 ## License
 
-MIT — 自由使用、修改、分发。
+MIT — free to use, modify, and distribute.

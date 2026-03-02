@@ -1,31 +1,26 @@
----
-globs: "**/*"
-description: "反打地鼠规则 — 防止逐个修补症状"
----
+## Mole-Whacking Detection
 
-## 打地鼠检测
+If you find yourself doing any of the following, **stop immediately**:
 
-如果你发现自己正在做以下任何一件事，**立即停下**：
+### Red Flags
+1. **Fixed A, broke B, now fixing B** — You're whack-a-mole-ing. Step back and find the common root cause.
+2. **Edited the same file 3+ times** — You may be going in circles. Stop and reassess.
+3. **Changing tests to make them pass instead of fixing code** — Unless the test itself is genuinely wrong, this is hiding problems.
+4. **Adding try/catch or if/else to "work around" an error** — This is symptom patching, not fixing.
+5. **Copy-pasting code and tweaking it** — You may be guessing without understanding the underlying logic.
 
-### 🚨 危险信号
-1. **修了 A 坏了 B，又去修 B** — 你在打地鼠。退回去找共同根因。
-2. **同一个文件改了 3 次以上** — 你可能在兜圈子。停下来重新审视。
-3. **改测试让它通过而不是改代码** — 除非测试本身确实写错了，否则这是在掩盖问题。
-4. **加了 try/catch 或 if/else 来"绕过"错误** — 这是症状修补，不是修复。
-5. **复制粘贴一段代码然后微调** — 可能是在不理解原理的情况下碰运气。
+### Correct Approach
+- Stop and list all problems that have appeared
+- Look for the common cause across these problems
+- Design a unified fix at the root cause level
+- After fixing, verify that all problems are resolved simultaneously
 
-### ✅ 正确做法
-- 停下来，列出所有已出现的问题
-- 寻找这些问题的共同原因
-- 从根因层面设计一个统一的修复方案
-- 修复后验证所有问题同时消失
-
-### 汇报模板
-如果你需要停下来，用这个格式汇报：
+### Report Template
+If you need to stop, use this format:
 ```
-🛑 打地鼠警告
-已尝试: [列出已尝试的修复]
-观察到的模式: [这些问题之间的共同点]
-疑似根因: [你现在的判断]
-需要确认: [你不确定的地方]
+MOLE-WHACKING ALERT
+Attempted: [list all attempted fixes]
+Observed pattern: [what these problems have in common]
+Suspected root cause: [your current judgment]
+Need confirmation: [what you're unsure about]
 ```

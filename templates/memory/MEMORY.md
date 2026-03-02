@@ -1,23 +1,23 @@
-# 项目工作纪律（cc-discipline 框架）
+# Project Discipline (cc-discipline framework)
 
-本项目已安装 cc-discipline 纪律框架，新对话开始时请注意以下要点。
+This project has cc-discipline installed. Note the following at the start of each new conversation.
 
-## 三层防线
-1. **Rules**（`.claude/rules/`）— 按文件路径自动注入，编辑源码时会出现检查清单
-2. **Hooks**（`.claude/hooks/`）— 编辑前/执行后自动运行，可阻止操作（exit 2）
-3. **Agents**（`.claude/agents/`）— reviewer 审查方案、investigator 隔离调研
+## Three Lines of Defense
+1. **Rules** (`.claude/rules/`) — Auto-injected by file path; editing source code triggers checklists
+2. **Hooks** (`.claude/hooks/`) — Run automatically before/after edits; can block operations (exit 2)
+3. **Agents** (`.claude/agents/`) — Reviewer audits proposals; investigator performs isolated research
 
-## Hook 行为
-- `pre-edit-guard.sh` — 有未验证假设时**阻止编辑源码**，先更新 docs/debug-log.md
-- `streak-breaker.sh` — 同文件编辑 ≥3 次警告，≥5 次**硬停止**
-- `post-error-remind.sh` — 检测到错误输出时注入调试流程提醒（通过 exit 2 反馈给你）
+## Hook Behavior
+- `pre-edit-guard.sh` — **Blocks source code edits** when there are unverified hypotheses; update docs/debug-log.md first
+- `streak-breaker.sh` — Warns at >=3 edits to the same file, **hard stop** at >=5
+- `post-error-remind.sh` — Injects debugging process reminder when errors are detected (via exit 2 feedback)
 
-## 关键文件
-- `docs/progress.md` — 进度记录，每个里程碑更新，compact 后第一件事读它
-- `docs/debug-log.md` — 调试日志，假设标记"待验证"/"已确认"，影响 pre-edit-guard
+## Key Files
+- `docs/progress.md` — Progress log, updated at each milestone; first thing to read after compact
+- `docs/debug-log.md` — Debug log, hypotheses marked "pending"/"confirmed"; affects pre-edit-guard
 
-## 核心纪律
-- 先理解再动手，不锁定第一个解释（≥2 个替代假设）
-- 连续 3 次失败 → 停下来汇报
-- 不要打地鼠 — 同一文件反复改说明没找到根因
-- 调试四阶段：收集 → 假设 → 验证 → 修复，禁止跳步
+## Core Discipline
+- Understand before acting; don't lock onto first explanation (>=2 alternative hypotheses)
+- 3 consecutive failures → stop and report
+- Don't mole-whack — repeated edits to the same file means root cause not found
+- Four debugging phases: gather → hypothesize → verify → fix; no skipping steps

@@ -1,30 +1,30 @@
 ---
 name: commit
-description: 智能提交 — 测试、更新文档和记忆、然后提交，确保知识不随 commit 丢失
+description: Smart commit — run tests, update docs and memory, then commit to ensure knowledge is not lost
 disable-model-invocation: true
 ---
 
-按以下流程执行智能提交，核心原则：**代码和知识一起提交**。
+Execute the smart commit flow. Core principle: **commit code and knowledge together**.
 
-## 1. 运行测试
+## 1. Run Tests
 
-查看 CLAUDE.md 中的测试命令并执行。测试失败则停止提交并报告。
-没有配置测试命令的项目跳过此步。
+Check the test command in CLAUDE.md and execute it. If tests fail, stop the commit and report.
+Skip this step for projects with no configured test command.
 
-## 2. 更新知识文件
+## 2. Update Knowledge Files
 
-依次检查是否需要更新（简单改动可跳过）：
+Check each in order (simple changes may skip):
 
-**docs/progress.md** — 本次改动是否构成里程碑或重要进展？是则追加记录。
+**docs/progress.md** — Does this change constitute a milestone or significant progress? If so, append a record.
 
-**docs/debug-log.md** — 是否有调试会话需要关闭或更新状态？
+**docs/debug-log.md** — Are there debug sessions that need to be closed or updated?
 
-**CLAUDE.md** — 是否有新的组件、接口、已知陷阱、架构变更需要同步？
+**CLAUDE.md** — Are there new components, interfaces, known pitfalls, or architectural changes to sync?
 
-**Auto Memory** — 是否有跨会话值得记住的经验教训？（bug 模式、API 陷阱、调试技巧）
-更新 memory 文件，保持 MEMORY.md 200 行以内。
+**Auto Memory** — Are there cross-session lessons worth remembering? (bug patterns, API pitfalls, debugging tips)
+Update memory files, keeping MEMORY.md under 200 lines.
 
-## 3. 执行 git commit
+## 3. Execute git commit
 
 ```
 git status
@@ -32,9 +32,9 @@ git diff --staged && git diff
 git log --oneline -5
 ```
 
-- 选择性 `git add`（不要 `git add -A`）
-- docs/ 和 CLAUDE.md 如有变更一并提交
-- 不要提交 .env、credentials 等敏感文件
-- 提交消息格式参考已有 commit 风格
-- 不要 push（除非用户明确要求）
-- pre-commit hook 失败时修复后创建新 commit（不要 --amend）
+- Selectively `git add` (don't use `git add -A`)
+- Include docs/ and CLAUDE.md changes in the commit if modified
+- Don't commit .env, credentials, or other sensitive files
+- Follow existing commit message style
+- Don't push (unless user explicitly requests it)
+- If pre-commit hook fails, fix the issue and create a new commit (don't --amend)

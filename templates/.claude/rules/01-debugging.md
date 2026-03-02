@@ -1,27 +1,22 @@
----
-globs: "**/*"
-description: "调试纪律 — 遇到错误或测试失败时自动注入"
----
+## Debugging Process (follow strictly in order)
 
-## 调试流程（严格按顺序执行）
+### Phase 1: Gather (do NOT modify any files)
+- Read the full error message and stack trace
+- Confirm reproduction conditions
+- Check related tests and logs
 
-### Phase 1: 收集（禁止修改任何文件）
-- 完整阅读错误信息和堆栈
-- 确认复现条件
-- 检查相关测试和日志
+### Phase 2: Hypothesize (do NOT modify any files)
+- List >=3 possible causes
+- Annotate each with supporting/contradicting evidence
+- Record hypotheses in `docs/debug-log.md`
 
-### Phase 2: 假设（禁止修改任何文件）
-- 列出 ≥3 个可能原因
-- 每个标注支持/反对证据
-- 将假设记录到 `docs/debug-log.md`
+### Phase 3: Verify
+- Use minimal experiments to confirm/refute hypotheses — don't jump to fixing
+- Update debug-log as each hypothesis is eliminated
 
-### Phase 3: 验证
-- 用最小实验证实/证伪假设，不要直接修复
-- 每排除一个假设，在 debug-log 中更新状态
+### Phase 4: Fix
+- Only act after confirming the root cause
+- Explain how the fix addresses the root cause (not just the symptoms)
+- Run all related tests after fixing
 
-### Phase 4: 修复
-- 确认根因后再动手
-- 说明修复方案如何解决根因（不仅仅是消除症状）
-- 修复后运行全部相关测试
-
-**绝对禁止：看到一个报错就直接改代码试试看**
+**Absolutely forbidden: seeing an error and immediately changing code to "try something"**

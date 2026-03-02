@@ -1,25 +1,20 @@
----
-globs: "**/*.py,**/pyproject.toml,**/setup.py,**/requirements*.txt"
-description: "Python 规则 — 编辑 Python 文件时自动注入"
----
+## Python Discipline
 
-## Python 工作纪律
+### Code Quality
+- Run lint/type check after modifications (use whatever the project has configured: ruff, mypy, pyright, etc.)
+- Type annotations: new code must have type hints; add them to old code when modifying it
+- Import ordering follows project conventions (typically managed by isort or ruff)
 
-### 代码质量
-- 修改后运行 lint/type check（项目配了什么就用什么：ruff, mypy, pyright 等）
-- 类型标注：新代码必须有 type hints，修改旧代码时顺手补上
-- import 排序遵循项目约定（通常 isort 或 ruff 管理）
+### Dependency Management
+- Ask before adding new dependencies — is it truly needed? Is there a stdlib alternative?
+- Confirm dependency version constraints — don't leave versions unconstrained, and don't pin too tightly
 
-### 依赖管理
-- 添加新依赖前先问 — 是否真的需要？有没有标准库替代？
-- 确认依赖版本约束 — 不要无约束 pin，也不要 pin 太死
+### Testing
+- Run related tests after modifying logic
+- First confirm which test framework the project uses (pytest? unittest?) and the run command — don't assume
+- When tests fail, don't change the test to make it pass — first determine if the test is outdated or the code has a bug
 
-### 测试
-- 修改逻辑后必须跑相关测试
-- 先确认项目用什么测试框架（pytest? unittest?）和运行命令，不要假设
-- 测试失败时不要改测试来通过 — 先确认是测试过时还是代码有 bug
-
-### 禁止事项
-- 禁止裸 `except:` 或 `except Exception:` 吞掉所有异常
-- 禁止在不理解现有代码的情况下整个重写一个模块
-- 禁止引入 `os.system()` — 用 `subprocess.run()` 并处理错误
+### Prohibited
+- No bare `except:` or `except Exception:` swallowing all exceptions
+- No rewriting an entire module without understanding the existing code
+- No introducing `os.system()` — use `subprocess.run()` with proper error handling

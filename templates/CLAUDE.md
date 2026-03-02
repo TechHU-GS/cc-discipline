@@ -1,80 +1,80 @@
 # [PROJECT_NAME] — CLAUDE.md
 
-> 通用工作纪律已通过 `.claude/rules/` 自动注入，此文件只放项目特有信息。
+> General discipline rules are auto-injected via `.claude/rules/`. This file is for project-specific information only.
 
 ---
 
-## 项目概述
+## Project Overview
 
-- **项目名称**: [PROJECT_NAME]
-- **一句话描述**: [待填写 — 这个项目要达成什么]
-- **技术栈**: [待填写]
-- **关键约束**: [待填写 — 例如性能要求、兼容性要求、安全要求]
+- **Project name**: [PROJECT_NAME]
+- **One-line description**: [TODO — what this project aims to achieve]
+- **Tech stack**: [TODO]
+- **Key constraints**: [TODO — e.g., performance requirements, compatibility, security]
 
 ---
 
-## 项目结构
+## Project Structure
 
-[待填写 — 描述目录结构和各模块职责]
+[TODO — describe directory structure and module responsibilities]
 
 ```
-├── src/          ← [待填写]
-├── tests/        ← [待填写]
+├── src/          ← [TODO]
+├── tests/        ← [TODO]
 ├── docs/
-│   ├── progress.md      ← 进度和决策记录（Claude 维护，不要手动编辑）
-│   └── debug-log.md     ← 调试过程记录（Claude 维护）
+│   ├── progress.md      ← Progress and decision log (maintained by Claude, do not edit manually)
+│   └── debug-log.md     ← Debug session log (maintained by Claude)
 └── .claude/
-    ├── rules/           ← 自动注入的规则
-    ├── hooks/           ← 强制执行的钩子
-    └── agents/          ← reviewer & investigator 子代理
+    ├── rules/           ← Auto-injected rules
+    ├── hooks/           ← Enforced hooks
+    └── agents/          ← Reviewer & investigator subagents
 ```
 
 ---
 
-## 常用命令
+## Common Commands
 
-[待填写 — 构建、测试、lint、运行的具体命令]
+[TODO — build, test, lint, run commands]
 
 ```bash
 # Build
-# [待填写]
+# [TODO]
 
 # Test
-# [待填写]
+# [TODO]
 
 # Lint / Type Check
-# [待填写]
+# [TODO]
 
 # Run / Simulate
-# [待填写]
+# [TODO]
 ```
 
 ---
 
-## 代码风格
+## Code Style
 
-[待填写 — 团队约定]
-
----
-
-## ⚠️ 已知陷阱
-
-[待填写 — 项目特有的坑，示例：]
-- [例：xx 模块的接口看起来像 REST 但实际是 WebSocket]
-- [例：数据库迁移必须向后兼容]
-- [例：某个第三方库的 v2 API 有 breaking change，我们锁定在 v1]
+[TODO — team conventions]
 
 ---
 
-## Compact 补充指令
+## Known Pitfalls
 
-compact 时除了通用规则（保留任务目标、进度、决策），还需保留：
-- [待填写 — 项目特有的必须保留的上下文]
+[TODO — project-specific gotchas, examples:]
+- [e.g., Module X's interface looks like REST but is actually WebSocket]
+- [e.g., Database migrations must be backwards-compatible]
+- [e.g., Third-party library v2 API has breaking changes, we're pinned to v1]
 
 ---
 
-## 决策日志
+## Compact Supplement
 
-| 日期 | 决策 | 原因 | 影响 |
-|------|------|------|------|
+When compacting, in addition to general rules (preserve task objectives, progress, decisions), also preserve:
+- [TODO — project-specific context that must be retained]
+
+---
+
+## Decision Log
+
+| Date | Decision | Reason | Impact |
+|------|----------|--------|--------|
 | | | | |

@@ -44,14 +44,14 @@ elif [ -f "docs/debug-log.md" ]; then
 fi
 
 if [ -n "$DEBUG_LOG" ]; then
-    PENDING=$(grep -c "待验证" "$DEBUG_LOG" 2>/dev/null) || PENDING=0
-    CONFIRMED=$(grep -c "已确认" "$DEBUG_LOG" 2>/dev/null) || CONFIRMED=0
+    PENDING=$(grep -c "pending" "$DEBUG_LOG" 2>/dev/null) || PENDING=0
+    CONFIRMED=$(grep -c "confirmed" "$DEBUG_LOG" 2>/dev/null) || CONFIRMED=0
 
     if [ "$PENDING" -gt "$CONFIRMED" ] 2>/dev/null; then
         cat >&2 <<EOF
-⚠️ docs/debug-log.md 中有 $((PENDING - CONFIRMED)) 个未验证的假设。
-请先完成调试流程（验证或排除假设）再修改源码。
-如果你已确认根因，请先更新 debug-log.md。
+docs/debug-log.md has $((PENDING - CONFIRMED)) unverified hypotheses.
+Please complete the debugging process (verify or eliminate hypotheses) before editing source code.
+If you have confirmed the root cause, update debug-log.md first.
 EOF
         exit 2
     fi

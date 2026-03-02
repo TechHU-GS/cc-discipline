@@ -1,12 +1,12 @@
 ---
 globs: "**/*"
-description: "核心工作原则 — 所有操作前自动注入"
+description: "Core working principles — auto-injected before all operations"
 ---
 
-## 核心原则
+## Core Principles
 
-1. **先理解，再动手** — 修改任何文件前，必须先说明：改什么、为什么改、预期影响
-2. **不要锁定第一个解释** — 找到疑似原因后，必须列出 ≥2 个替代假设再行动
-3. **最小改动原则** — 除非被明确要求，禁止大规模重构或重写
-4. **连续 3 次失败 → 强制停下** — 汇报当前状态、已尝试的方案、困惑点，等待人类指导
-5. **区分触发条件和根因** — 你看到的第一个异常往往只是触发条件，不是根因
+1. **Understand before acting** — Before modifying any file, state: what you're changing, why, and the expected impact
+2. **Don't lock onto the first explanation** — After finding a suspected cause, list >=2 alternative hypotheses before acting
+3. **Minimal change principle** — No large-scale refactors or rewrites unless explicitly requested
+4. **3 consecutive failures → forced stop** — Report current state, attempted solutions, and points of confusion; wait for human guidance
+5. **Distinguish trigger from root cause** — The first anomaly you see is often just the trigger, not the root cause

@@ -1,16 +1,11 @@
----
-globs: "src/**/*,lib/**/*,rtl/**/*,hw/**/*,app/**/*,packages/**/*"
-description: "修改源码前的强制检查 — 编辑源码目录时自动注入"
----
+## Pre-Edit Checklist
 
-## 修改前检查清单
+Before modifying this file, confirm each of the following:
 
-在修改此文件之前，确认以下每一项：
+- [ ] **I understand this file's role in the overall architecture** — If unsure, read surrounding files first
+- [ ] **I know which other modules this change will affect** — If unsure, grep for references first
+- [ ] **I am fixing the root cause, not patching symptoms** — If unsure, return to the debugging process
+- [ ] **I have recorded the purpose of this change in `docs/progress.md`**
+- [ ] **I know how to verify after the change** — Run tests if available, otherwise state the verification method
 
-- [ ] **我理解这个文件在整体架构中的角色** — 不确定就先读周围的文件
-- [ ] **我知道这个改动会影响哪些其他模块** — 不确定就先 grep 引用关系
-- [ ] **我在解决根因而不是修补症状** — 如果不确定，回到调试流程
-- [ ] **我已在 `docs/progress.md` 记录了这次修改的目的**
-- [ ] **我知道改完后怎么验证** — 有测试就跑测试，没有就说明验证方法
-
-如果任何一项不确定，先停下来搞清楚再继续。
+If any item is uncertain, stop and figure it out before proceeding.

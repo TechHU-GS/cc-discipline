@@ -51,15 +51,15 @@ STOP_THRESHOLD=5
 # Hard stop: exit 2 + stderr
 if [ "$COUNT" -ge "$STOP_THRESHOLD" ]; then
     cat >&2 <<EOF
-🛑 打地鼠警告（硬停止）
-文件 $FILE_PATH 已被编辑 $COUNT 次。
-你在反复修补症状而不是解决根因。
-强制要求：
-  1. 立即停止修改此文件
-  2. 回顾所有 $COUNT 次修改的目的
-  3. 寻找共同根因
-  4. 向用户汇报发现，等待指导
-解除方法：用户确认方向后，删除 $COUNTER_FILE 重置计数
+MOLE-WHACKING ALERT (hard stop)
+File $FILE_PATH has been edited $COUNT times.
+You are repeatedly patching symptoms instead of solving the root cause.
+Required actions:
+  1. Stop editing this file immediately
+  2. Review the purpose of all $COUNT edits
+  3. Look for the common root cause
+  4. Report findings to the user and wait for guidance
+To reset: after user confirms direction, delete $COUNTER_FILE to reset the counter
 EOF
     exit 2
 fi
@@ -70,7 +70,7 @@ if [ "$COUNT" -ge "$WARN_THRESHOLD" ]; then
 {
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
-    "additionalContext": "⚠️ 注意：文件 $FILE_PATH 已被编辑 $COUNT 次。检查你是否在打地鼠？这些修改是否指向同一个根因？再编辑 $((STOP_THRESHOLD - COUNT)) 次将触发硬停止。"
+    "additionalContext": "WARNING: File $FILE_PATH has been edited $COUNT times. Are you mole-whacking? Do these edits point to the same root cause? $((STOP_THRESHOLD - COUNT)) more edits will trigger a hard stop."
   }
 }
 EOF
