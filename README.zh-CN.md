@@ -44,7 +44,7 @@
 ### 方法 1: 克隆 + 初始化脚本
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/cc-discipline.git ~/.cc-discipline
+git clone https://github.com/TechHU-GS/cc-discipline.git ~/.cc-discipline
 
 # In your project directory:
 cd your-project
@@ -59,7 +59,7 @@ bash ~/.cc-discipline/init.sh
 ### 方法 3: 只安装全局规则
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/cc-discipline.git /tmp/cc-discipline
+git clone https://github.com/TechHU-GS/cc-discipline.git /tmp/cc-discipline
 cp /tmp/cc-discipline/global/CLAUDE.md ~/.claude/CLAUDE.md
 ```
 

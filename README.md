@@ -55,7 +55,7 @@ Auto-injected markdown in `.claude/rules/` — Claude sees them when operating o
 ## Install
 
 ```bash
-git clone https://github.com/anthropic-fans/cc-discipline.git ~/.cc-discipline
+git clone https://github.com/TechHU-GS/cc-discipline.git ~/.cc-discipline
 cd your-project
 bash ~/.cc-discipline/init.sh
 ```
