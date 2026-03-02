@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hook": ".claude/hooks/pre-edit-guard.sh"
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hook": ".claude/hooks/streak-breaker.sh"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hook": ".claude/hooks/post-error-remind.sh"
+      }
+    ]
+  }
+}
