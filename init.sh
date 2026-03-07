@@ -152,6 +152,7 @@ cp "$SCRIPT_DIR/templates/.claude/rules/03-context-mgmt.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/04-no-mole-whacking.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/05-phase-discipline.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/06-multi-task.md" .claude/rules/
+cp "$SCRIPT_DIR/templates/.claude/rules/07-integrity.md" .claude/rules/
 
 # ─── Copy stack-specific rules based on selection ───
 if [ ${#STACKS[@]} -gt 0 ] && [ -n "${STACKS[0]}" ]; then
