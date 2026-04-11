@@ -1,0 +1,5 @@
+# Force LF line endings for all shell scripts (cross-platform)
+*.sh text eol=lf
+# Markdown and JSON are safe with LF too
+*.md text eol=lf
+*.json text eol=lf

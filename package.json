@@ -1,0 +1,34 @@
+{
+  "name": "cc-discipline",
+  "version": "2.10.2",
+  "description": "Discipline framework for Claude Code — rules, hooks, and agents that keep AI on track",
+  "bin": {
+    "cc-discipline": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "init.sh",
+    "templates/",
+    "global/",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "ai-discipline",
+    "hooks",
+    "rules",
+    "agents",
+    "code-quality",
+    "developer-tools"
+  ],
+  "author": "techhu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TechHU-GS/cc-discipline.git"
+  },
+  "homepage": "https://github.com/TechHU-GS/cc-discipline#readme"
+}
