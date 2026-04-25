@@ -61,11 +61,35 @@ Pause and honestly answer every question below.
 
 If any of the above are stale or incomplete: **update docs/progress.md now before continuing.** This takes 2 minutes and saves hours of re-discovery after compact.
 
-## 6. What's working well?
+## 6. Am I using the project's scaffolding?
+
+Projects accumulate custom tooling — audit scripts, lint configs, validators (cppcheck, custom DRC, schema checkers, etc.). These get forgotten and rot if not exercised.
+
+- Check **CLAUDE.md "Project Tools"** and the **Project-specific Checks** list below. Are any relevant to current work but haven't been run?
+- Did I build a new tool/script/check this session that future sessions should know about? If yes, **register it now in two places**:
+  1. `CLAUDE.md` "Project Tools" — what it is, where it lives, when to use it
+  2. The **Project-specific Checks** list below — so the next /self-check surfaces it automatically
+- If the **Project-specific Checks** list below is empty or stale, that's a signal worth raising with the user.
+
+### Project-specific Checks
+
+<!--
+Add project-specific scaffolding here. One line per check, format:
+  - `<command>` — when to run / what it catches
+Examples:
+  - `make lint` — before commit, catches license headers and formatting
+  - `python tools/audit_rbac.py` — after schema changes, catches RBAC drift
+  - `cppcheck src/` — after C/C++ edits, catches null deref / leak patterns
+Keep this list curated — remove tools that are obsolete.
+-->
+
+(Empty — fill in as the project develops scaffolding worth checking periodically.)
+
+## 7. What's working well?
 
 Before reporting issues, note one thing that's going well — a good approach, a clean fix, effective tool use, or strong alignment with the user's direction. Recognizing what works reinforces it.
 
-## 7. Status report
+## 8. Status report
 
 After answering the above, output a brief status:
 
@@ -76,6 +100,7 @@ Current action: [what I'm doing now]
 On track: yes/no/drifted
 Progressing: yes/circling
 Progress recorded: yes/updated now/no
+Scaffolding: [used/skipped/n/a]
 Going well: [one thing]
 Issues found: [list, or "none"]
 ```
