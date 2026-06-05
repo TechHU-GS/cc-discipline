@@ -6,10 +6,10 @@
 
 ## Current Status
 
-- **In progress**: v2.10.2 published, tone rewrite + CRLF fix shipped
-- **Last updated**: 2026-04-10
-- **Next steps**: Test on more user projects, gather feedback on new tone
-- **Published**: v2.10.1 (tone rewrite), v2.10.2 (CRLF hotfix + .gitattributes)
+- **In progress**: v2.11.0 — bundle of: (1) new /finish skill + /think `and finish` wiring; (2) self-check progress.md auto-update + `disallowed-tools: AskUserQuestion`; (3) soundness-review red items: install scripts directory-driven (init/status/doctor glob `skills/*/`), pre-edit-guard per-edit bug-fix nag removed, action-counter session_id bug fixed (jq-only → grep fallback). All verified, **not yet committed/published**.
+- **Last updated**: 2026-06-05
+- **Next steps**: commit + publish v2.11.0 (install propagation already verified). Optional: store CC 2.1.154 facts + session_id-fallback lesson as memory; revisit yellow/strategic items (plugin-ization, git tags, /investigate vs native workflows).
+- **Published**: v2.10.1 (tone rewrite), v2.10.2 (CRLF hotfix + .gitattributes), v2.10.3 (self-check Project-specific Checks)
 
 ---
 
@@ -48,7 +48,7 @@ node bin/cli.js --version
 
 ### Environment State
 - Branch: main
-- Latest npm: 2.10.0
+- Latest npm: 2.10.3 published; 2.11.0 staged (uncommitted)
 - macOS + Windows tested
 
 ### Gotchas Discovered
@@ -141,6 +141,24 @@ node bin/cli.js --version
 **Gotchas**: pre-edit-guard "bug fix" reminder fires on every edit including planned non-bugfix work (friction noted for /retro). jq unavailable on Windows prevents runtime testing of some hooks (pre-existing issue).
 **Verification**: grep confirmed all old patterns removed, all new patterns present. Full `init --auto --stack 7` install test passed. Installed file content spot-checked (6/6 correct).
 
+### 2026-06-05 — v2.11.0: /finish skill + /think wiring + self-check friction fix
+
+**What**: (1) New `/finish` skill — drive a task to completion with a quality bar (扎实/全面/完备测试 + 07-integrity verify-before-done). Standalone, or as the handoff after `/think and finish`. (2) /think gained a "Downstream" section documenting `and plan` / `and finish` directives (doesn't touch Steps 0-5; honors phase-discipline — handoff is post-approval only). (3) self-check §5/§8: stale progress.md is now updated **silently and automatically** instead of asking the user each time. (4) self-check frontmatter gains `disallowed-tools: AskUserQuestion` — verified supported in CC 2.1.154 (binary grep + official docs) — so under `/loop` it *physically cannot* stop to ask; hardens (3) from soft instruction to hard guarantee. (/finish deliberately excluded — its Step 1 legitimately asks one round when standalone scope is unclear.)
+**How**: Created `skills/finish/SKILL.md` in templates/ + local .claude/. Appended Downstream section to think (both copies). Edited self-check §5 ("update now, automatically — don't ask") and §8 (carve progress.md updates out of "issues" that require a pause). Registered: CLAUDE.md 7→8 skills, local MEMORY.md skills list + design-principle line, package.json 2.10.3→2.11.0.
+**Why this approach**: User uses native /goal heavily and wanted a quality-bar'd version. Chose composition (independent skill + /think wiring) over integration — keeps /think pure, allows standalone "想好就直接做" use, and the compositional `and finish` declares post-approval execution stance without bypassing the 05-phase gate. self-check fix: updating progress.md is always-correct maintenance, not a decision needing sign-off — asking every time was pure friction (worse under /loop).
+**Gotchas**: `.claude/memory/` is gitignored (symlink, decision #2) so repo greps don't scan it — had to edit the local MEMORY.md directly. /think and /finish are deliberate opposites (align+wait vs drive+done). **init.sh/status.sh/doctor.sh enumerate skills by name** — a new skill must be registered in all three or it won't install. Also two MEMORY.md count refs + one in "Key File Structure" (3 total) were easy to miss; a grep sweep caught the third.
+**Verification**: Fresh `init.sh --auto --stack 7` into temp dir → exit 0, `finish/SKILL.md` copied, `doctor` shows `✓ /finish`, `status` reads `8/8 (... /finish)`. Repo sweep for stale "7 skills" refs: clean. `node bin/cli.js --version` → 2.11.0. All edits grep-confirmed in both templates/ and local .claude/ copies.
+
+### 2026-06-05 — v2.11.0 (cont.): framework hardening (soundness review, red items #1–#3)
+
+**What**: (#1) Made skill install/list **directory-driven** instead of name-enumerated. (#2) Removed pre-edit-guard's unconditional per-edit "bug fix" reminder.
+**How**: #1 — `init.sh` install loop now globs `templates/.claude/skills/*/` (was 8 hardcoded `cp` lines); the two post-install summary blocks collapsed to one line pointing at `status`; `lib/status.sh` and `lib/doctor.sh` now glob `.claude/skills/*/` (dropped the hardcoded `/8` denominator and the per-name lists). #2 — pre-edit-guard's tail block (lines 93-100) replaced with a silent `exit 0` in both templates/ + local copies.
+**Why this approach**: #1 — adding `/finish` this session forced edits in 6 enumerated spots and a grep sweep still found a 3rd stale count; enumeration was accidental coupling where a miss = skill not installed. Now adding a skill = drop a dir, zero script edits. #2 — the reminder fired on *every* non-md/test edit (incl. all of this session's feature/registration work); its guidance is already in always-injected rules 00§6/01 + the hard debug-log block + post-error-remind, so per-edit re-injection was pure noise (it doesn't earn its context footprint).
+**Gotchas**: doctor no longer warns about "missing" individual skills (skills are optional/independent, so a missing one isn't an install failure) — acceptable trade. Verified with jq absent (Windows-safe path).
+**Verification**: Fresh install → loop copies all 8 skills; `status` reads `8 (/commit … /finish)` (no `/8`); `doctor` lists all 8 via glob. pre-edit-guard fed a `.sh` Edit JSON → empty output, exit 0 (silent). All with `jq` unavailable.
+
+**Plus #3 (action-counter session_id bug — root cause, evidence-backed):** Counter lived at `/tmp/cc-discipline-unknown/action-count` = 13065 (one global, never-resetting tally) because action-counter extracted `session_id` with **jq only, no grep fallback** → on jq-less machines (Windows) every session collapsed to the literal `"unknown"`. Evidence ruling out alternatives: streak-breaker has the grep fallback and its `/tmp` dirs are all real UUIDs (never `unknown-session`), proving `session_id` IS in the input and grep extracts it. Effect of the bug: the early-action phase check (`count<=3`) never fired again after the first-ever session, and the periodic reflection fired off a global tally. **Fix**: copied streak-breaker's jq-or-grep pattern into action-counter (both copies). **Verified**: feeding `{"session_id":"X",...}` → counts land in `/tmp/cc-discipline-X/` starting at 1; the count<=3 phase check was observed firing **live in this session** right after the fix (the dead feature revived). The "reflection fires too often" symptom was a *consequence* of the global counter — per-session counting resolves it; any further trimming of the 10-point block / 25 interval is now optional tuning (deferred to user).
+
 ---
 
 ## Key Decisions
@@ -155,3 +173,4 @@ node bin/cli.js --version
 | 6 | Node.js CLI entry for cross-platform | bash entry point fails on Windows npm | bin/cli.js | 2026-04-03 |
 | 7 | StatusLine opt-in interactive only | Don't modify user's global settings without asking | init.sh | 2026-04-04 |
 | 8 | Tone rewrite: 赏罚分明 not uniformly soft | Real failures need firm language; only the framing changes | All rules, hooks, skills | 2026-04-08 |
+| 9 | /finish as independent skill + /think wiring (composition, not integration) | Keeps /think pure, allows standalone use, and `and finish` declares post-approval stance without bypassing the 05-phase gate | /finish, /think, init/status/doctor | 2026-06-05 |

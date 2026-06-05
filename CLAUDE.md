@@ -30,7 +30,7 @@
 │   ├── .claude/
 │   │   ├── hooks/       ← 7 shell scripts (pre-edit-guard, streak-breaker, etc.)
 │   │   ├── rules/       ← 8 core rules (00-07) + stacks/ (5 tech stacks)
-│   │   ├── skills/      ← 7 skills (commit, self-check, evaluate, think, retro, summary, investigate)
+│   │   ├── skills/      ← 8 skills (commit, self-check, evaluate, think, retro, summary, investigate, finish)
 │   │   ├── agents/      ← reviewer + investigator subagents
 │   │   └── settings.json← Hook registration
 │   ├── CLAUDE.md        ← Project CLAUDE.md template
@@ -98,7 +98,7 @@ npx cc-discipline@latest upgrade
 - **macOS /tmp → /private/tmp**: `cwd` in hook JSON will be `/private/tmp/...`. Use both paths for file checks.
 - **npm bin path on Windows**: npm creates `.cmd` shims, bash scripts don't work directly. cli.js solves this.
 - **set -e on Git Bash**: Many commands fail silently on Windows due to path/command differences. Disabled for MINGW/MSYS.
-- **jq not always available**: All hooks have grep/sed fallbacks when jq is missing.
+- **jq not always available**: Every hook MUST have grep/sed fallbacks for jq. Watch `session_id` especially — action-counter shipped jq-only through v2.10.x, so on Windows (no jq) every session collapsed to the literal `"unknown"` and shared one never-resetting global counter (it had climbed to 13065), silently killing the early-action phase check. Fixed v2.11.0 by mirroring streak-breaker's `jq`-or-`grep` pattern. When adding/editing a hook, smoke-test it with jq absent.
 - **grep -c returns exit 1 on zero matches**: Use `VAR=$(grep -c ...) || VAR=0`, not `grep -c ... || echo "0"`.
 - **stat -f vs stat -c**: macOS uses `stat -f %m`, Linux uses `stat -c %Y`. action-counter tries both.
 - **Version must be bumped in package.json only**: init.sh reads from package.json via cli.js env var. No hardcoded versions.

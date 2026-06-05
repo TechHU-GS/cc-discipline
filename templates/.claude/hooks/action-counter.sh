@@ -6,10 +6,17 @@
 THRESHOLD=25
 
 INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
-if [ -z "$SESSION_ID" ] || [ "$SESSION_ID" = "null" ]; then
-    SESSION_ID="unknown"
+# Extract session_id with a grep fallback for when jq is unavailable (e.g.
+# Windows Git Bash). Without this fallback, every session collapsed to the
+# literal "unknown" and shared ONE never-resetting global counter — which
+# permanently disabled the early-action phase check (count never restarted
+# at 1) and made the periodic reflection fire off a global tally. (fixed 2026-06-05)
+if command -v jq &>/dev/null; then
+    SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+else
+    SESSION_ID=$(echo "$INPUT" | grep -o '"session_id":\s*"[^"]*"' | head -1 | sed 's/"session_id":\s*"//;s/"//')
 fi
+SESSION_ID="${SESSION_ID:-unknown}"
 
 COUNT_DIR="/tmp/cc-discipline-${SESSION_ID}"
 COUNT_FILE="${COUNT_DIR}/action-count"

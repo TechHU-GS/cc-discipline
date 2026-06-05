@@ -1,6 +1,6 @@
 {
   "name": "cc-discipline",
-  "version": "2.10.3",
+  "version": "2.11.0",
   "description": "Discipline framework for Claude Code — rules, hooks, and agents that keep AI on track",
   "bin": {
     "cc-discipline": "bin/cli.js"

@@ -66,15 +66,12 @@ echo -e "${GREEN}${AGENT_COUNT}/2${NC} (${AGENTS% })"
 # Skills
 echo -n "Skills:   "
 SKILLS=""
-[ -d ".claude/skills/commit" ] && SKILLS="${SKILLS}/commit "
-[ -d ".claude/skills/self-check" ] && SKILLS="${SKILLS}/self-check "
-[ -d ".claude/skills/evaluate" ] && SKILLS="${SKILLS}/evaluate "
-[ -d ".claude/skills/think" ] && SKILLS="${SKILLS}/think "
-[ -d ".claude/skills/retro" ] && SKILLS="${SKILLS}/retro "
-[ -d ".claude/skills/summary" ] && SKILLS="${SKILLS}/summary "
-[ -d ".claude/skills/investigate" ] && SKILLS="${SKILLS}/investigate "
+for skill_dir in .claude/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    SKILLS="${SKILLS}/$(basename "$skill_dir") "
+done
 SKILL_COUNT=$(echo "$SKILLS" | wc -w | tr -d ' ')
-echo -e "${GREEN}${SKILL_COUNT}/7${NC} (${SKILLS% })"
+echo -e "${GREEN}${SKILL_COUNT}${NC} (${SKILLS% })"
 
 # Settings
 echo -n "Settings: "

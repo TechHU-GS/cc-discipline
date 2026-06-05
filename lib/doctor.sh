@@ -95,13 +95,13 @@ done
 # 6. Skills
 echo ""
 echo "Skills:"
-for skill in commit self-check evaluate think retro summary investigate; do
-    if [ -d ".claude/skills/${skill}" ]; then
-        ok "/${skill}"
-    else
-        warn "Missing /${skill} skill (optional)"
-    fi
+SKILL_FOUND=0
+for skill_dir in .claude/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    ok "/$(basename "$skill_dir")"
+    SKILL_FOUND=$((SKILL_FOUND + 1))
 done
+[ "$SKILL_FOUND" -eq 0 ] && warn "No skills installed (optional)"
 
 # 7. jq
 echo ""

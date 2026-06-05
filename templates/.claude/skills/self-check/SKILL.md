@@ -2,6 +2,7 @@
 name: self-check
 description: Periodic self-check — reflect on alignment, progress, and quality. Use with /loop for continuous monitoring.
 disable-model-invocation: true
+disallowed-tools: AskUserQuestion
 ---
 
 Pause and honestly answer every question below.
@@ -59,7 +60,7 @@ Pause and honestly answer every question below.
 - **Gotchas** — what went wrong or was surprising
 - **Verification** — how it was confirmed working (test output, manual check)
 
-If any of the above are stale or incomplete: **update docs/progress.md now before continuing.** This takes 2 minutes and saves hours of re-discovery after compact.
+If any of the above are stale or incomplete: **update docs/progress.md now, automatically — don't ask for permission.** Keeping progress.md current is always-correct maintenance, not a decision that needs sign-off. Just do it, then note "updated now" in the status line. This takes 2 minutes and saves hours of re-discovery after compact.
 
 ## 6. Am I using the project's scaffolding?
 
@@ -105,7 +106,7 @@ Going well: [one thing]
 Issues found: [list, or "none"]
 ```
 
-If any issues were found, pause and report to the user before continuing.
+If any issues were found, pause and report to the user before continuing. (Routine progress.md updates from §5 don't count as "issues" — you already made them silently; just report "updated now". Reserve the pause for alignment, rigor, or scope problems that genuinely need the user.)
 
 ## Reminder
 

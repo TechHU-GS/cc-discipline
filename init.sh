@@ -365,20 +365,13 @@ cp "$SCRIPT_DIR/templates/.claude/agents/investigator.md" .claude/agents/
 
 # ─── Install skills ───
 echo -e "${GREEN}Installing skills...${NC}"
-cp -r "$SCRIPT_DIR/templates/.claude/skills/commit" .claude/skills/
-cp -r "$SCRIPT_DIR/templates/.claude/skills/self-check" .claude/skills/
-cp -r "$SCRIPT_DIR/templates/.claude/skills/evaluate" .claude/skills/
-cp -r "$SCRIPT_DIR/templates/.claude/skills/think" .claude/skills/
-cp -r "$SCRIPT_DIR/templates/.claude/skills/retro" .claude/skills/
-cp -r "$SCRIPT_DIR/templates/.claude/skills/summary" .claude/skills/
-cp -r "$SCRIPT_DIR/templates/.claude/skills/investigate" .claude/skills/
-echo "   ✓ /commit — smart commit (test → update memory → commit)"
-echo "   ✓ /self-check — periodic discipline check (use with /loop 10m /self-check)"
-echo "   ✓ /evaluate — evaluate external review/advice against codebase context"
-echo "   ✓ /think — stop and think before coding (ask → propose → wait)"
-echo "   ✓ /retro — post-task retrospective (project + framework feedback)"
-echo "   ✓ /summary — write high-quality compact option before /compact"
-echo "   ✓ /investigate — multi-agent cross-investigation and proposal review"
+# Install every skill directory under templates/ — no per-skill enumeration,
+# so adding a new skill needs zero changes here.
+for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    cp -r "$skill_dir" .claude/skills/
+    echo "   ✓ /$(basename "$skill_dir")"
+done
 
 # ─── Handle CLAUDE.md ───
 if [ ! -f "CLAUDE.md" ]; then
@@ -534,13 +527,7 @@ if [ "$INSTALL_MODE" = "fresh" ]; then
     echo -e "  ${GREEN}.claude/rules/${NC}               ← Auto-injected rules"
     echo -e "  ${GREEN}.claude/hooks/${NC}               ← 7 discipline hooks (edit guard, streak breaker, git guard, phase gate, action counter, error remind, session start)"
     echo -e "  ${GREEN}.claude/agents/${NC}              ← Reviewer & investigator subagents"
-    echo -e "  ${GREEN}.claude/skills/commit/${NC}       ← /commit smart commit"
-    echo -e "  ${GREEN}.claude/skills/self-check/${NC}   ← /self-check periodic discipline check"
-    echo -e "  ${GREEN}.claude/skills/evaluate/${NC}     ← /evaluate assess external review advice"
-    echo -e "  ${GREEN}.claude/skills/think/${NC}        ← /think stop and think before coding"
-    echo -e "  ${GREEN}.claude/skills/retro/${NC}        ← /retro post-task retrospective"
-    echo -e "  ${GREEN}.claude/skills/summary/${NC} ← /summary before compacting"
-    echo -e "  ${GREEN}.claude/skills/investigate/${NC} ← /investigate multi-agent cross-investigation"
+    echo -e "  ${GREEN}.claude/skills/${NC}              ← Skills (run 'npx cc-discipline status' to list)"
     echo -e "  ${GREEN}.claude/settings.json${NC}        ← Hooks configuration"
     echo -e "  ${GREEN}docs/progress.md${NC}             ← Progress log (maintained by Claude)"
     echo -e "  ${GREEN}docs/debug-log.md${NC}            ← Debug log (maintained by Claude)"
@@ -556,13 +543,7 @@ else
     echo -e "  ${GREEN}.claude/rules/${NC}               ← Discipline rules installed/updated"
     echo -e "  ${GREEN}.claude/hooks/${NC}               ← Hook scripts installed/updated"
     echo -e "  ${GREEN}.claude/agents/${NC}              ← Subagents installed/updated"
-    echo -e "  ${GREEN}.claude/skills/commit/${NC}       ← /commit skill installed/updated"
-    echo -e "  ${GREEN}.claude/skills/self-check/${NC}   ← /self-check discipline check installed"
-    echo -e "  ${GREEN}.claude/skills/evaluate/${NC}     ← /evaluate external review assessment"
-    echo -e "  ${GREEN}.claude/skills/think/${NC}        ← /think stop and think before coding"
-    echo -e "  ${GREEN}.claude/skills/retro/${NC}        ← /retro post-task retrospective"
-    echo -e "  ${GREEN}.claude/skills/summary/${NC} ← /summary before compacting"
-    echo -e "  ${GREEN}.claude/skills/investigate/${NC} ← /investigate multi-agent cross-investigation"
+    echo -e "  ${GREEN}.claude/skills/${NC}              ← Skills installed/updated (run 'npx cc-discipline status' to list)"
     if [ ! -f "$BACKUP_DIR/settings.json" ] || [ -f ".claude/.cc-discipline-settings-template.json" ]; then
         echo -e "  ${YELLOW}.claude/settings.json${NC}        ← See notes above"
     else

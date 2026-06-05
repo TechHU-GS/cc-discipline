@@ -90,11 +90,9 @@ JSONEOF
     fi
 fi
 
-# ─── Bug-fix sanity check ───
-# Inject a lightweight reminder on source file edits:
-# "If this is a bug fix, have you eliminated alternative hypotheses?"
-# Uses additionalContext (non-blocking) so it doesn't slow down normal edits.
-cat <<JSONEOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"If this edit is a bug fix: have you listed >=3 possible causes and eliminated >=2 with evidence? Thorough elimination before fixing prevents wasted cycles. Use 'possible cause' until elimination evidence confirms the root cause."}}
-JSONEOF
+# Normal source edit: stay silent (exit 0, no output).
+# The "list >=3 causes before a bug fix" guidance already lives in the
+# always-injected rules (00-core §6, 01-debugging), the hard debug-log block
+# above, and post-error-remind. Re-injecting it on EVERY edit fired even on
+# planned feature/registration work — redundant noise, removed 2026-06-05.
 exit 0
