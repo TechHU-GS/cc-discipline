@@ -7,3 +7,6 @@
 # upgrade; in this repo they are just stale duplicates of templates/.
 .claude/.cc-discipline-claude-md-template
 .claude/.cc-discipline-settings-template.json
+# Transient: the template offered when a locally-modified skill is preserved.
+# Resolve it (diff, then keep yours or mv it into place) rather than committing it.
+.claude/skills/*/SKILL.md.new
