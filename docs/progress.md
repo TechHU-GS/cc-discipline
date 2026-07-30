@@ -34,6 +34,16 @@ rm -rf /tmp/cc-discipline-test && mkdir -p /tmp/cc-discipline-test && echo "0" >
 
 # Test Windows compatibility (on Mac, verify no regressions)
 node bin/cli.js --version
+
+# git-guard regression matrix — MANDATORY after any git-guard matching change
+bash tests/git-guard-matrix.sh                              # templates/ copy
+bash tests/git-guard-matrix.sh .claude/hooks/git-guard.sh   # installed copy
+
+# Audit that every jq read has a non-jq fallback (5 shipped broken before this)
+grep -n 'jq -r' templates/.claude/hooks/*.sh
+
+# Fresh-install check — via cli.js, NOT bash init.sh (see self-check notes)
+T=$(mktemp -d) && cd "$T" && git init -q &&   CC_DISCIPLINE_PKG_DIR=/e/Code/cc-discipline node /e/Code/cc-discipline/bin/cli.js init --auto --stack 7
 ```
 
 ### Current Workflow
@@ -48,9 +58,14 @@ node bin/cli.js --version
 ### Tools & Scripts Developed
 - `bin/cli.js` — Node.js cross-platform CLI entry (2026-04-03, Windows fix)
 - `bin/cli.sh` — Original bash CLI (kept for direct bash usage)
+- `tests/git-guard-matrix.sh` — 25-case regression matrix for git-guard (2026-07-30). Must-block / must-pass / safe-commands. Run after ANY git-guard matching change; verified 25/25 on GNU sed (MS-01, 7940) and BSD sed (mac-mini). Not shipped to npm.
 
 ### Environment State
 - Branch: main
+- **3 machines, 22 installs, all v2.12.3.** MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
+  - `techhu@100.64.0.8` mac-mini-m4 — macOS, HAS jq, node at `/usr/local/bin` (use `bash -lc` over SSH or PATH is missing it), code in `~/Code`
+  - `techhu_dev@100.64.0.18` techhu-7940 — Windows, node v24, code in `D:/Code`, cmd.exe shell. `bash` on PATH is only the WindowsApps WSL stub (wrong filesystem view); for Git Bash call its full path under `Program Files/Git/bin/` quoted, and note Git Bash sees the code dir as `/d/Code`.
+- Full machine details live in `techhu-devices/.claude/skills/dev-machines/SKILL.md`
 - Latest npm: 2.12.3 published (2026-07-30). macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
 - macOS + Windows tested
 
@@ -295,3 +310,4 @@ For installs predating the manifest, a file differing from the template cannot b
 **Verification**: 25/25 on GNU sed (Windows) **and** BSD sed (macOS) before publishing — the guard's `sed -E` is exactly the kind of code that diverges between the two, which is what the v2.12.1 bug taught. Then rolled out to all 22 installs on 3 machines and re-verified; 7940's two customized self-check files survived a third consecutive upgrade byte-identical. Final proof was this repo's own commit: its message describes the destructive commands inline via `-m` and went through without the `-F` workaround.
 
 **Session totals**: v2.12.0 → v2.12.3, 7 platform/design bugs fixed, all traced to the same root pattern — *code that behaves differently on another platform or in another quoting layer, failing silently in the safe-looking direction*. jq absent (5 reads), BSD vs GNU `stat` argument order, BSD vs GNU `cp` trailing-slash semantics, CRLF in a shebang, bash `printf` eating a backslash level, and text matching that could not separate data from execution.
+| 2026-07-30 | SAVE | /self-check §6 scaffolding | The scaffolding check caught three things I had skipped: status/doctor were never run after substantial init.sh changes; the jq-fallback audit was never re-run after the last git-guard edit; and the git-guard matrix had not been run on 7940 at all — while I had already written a "three platforms verified" header. All three came back clean, but the header was a claim ahead of its evidence. It also exposed a flaw in the check's own text (it recommended `bash init.sh` directly, which on Windows reports `Version: unknown` and looks like a regression). → the check earns its place; keep it. |
