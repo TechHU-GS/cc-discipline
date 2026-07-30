@@ -377,13 +377,83 @@ echo -e "${GREEN}Installing skills...${NC}"
 # v2.12.1. Symptom on an affected machine: a stray .claude/skills/SKILL.md plus
 # skill dirs frozen at their first-install date. status/doctor could not catch
 # it because they glob `skills/*/` and a bare file is not a directory.
+# Skills are NOT force-overwritten. Users legitimately tune them per repo
+# (/self-check's "Project-specific Checks" section exists precisely to be filled
+# in), and until v2.12.2 every upgrade silently replaced those edits — a 73KB
+# hand-written self-check was wiped twice in one day before this was fixed.
+#
+# The dpkg-conffile approach: remember the hash of the template WE installed. On
+# the next upgrade, if the file on disk still matches that hash the user never
+# touched it and we can update freely; if it differs the user owns it, so we keep
+# their file and drop the new template beside it as SKILL.md.new.
+#
+# The manifest hash is always set to the template we shipped this run, including
+# in the preserved case. That is what makes adoption self-healing: if the user
+# later replaces their file with the .new one, the next run sees disk == manifest
+# and resumes silent updates.
+SKILLS_MANIFEST=".claude/.cc-discipline-skills.manifest"
+NEW_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.tmp")
+PRESERVED_SKILLS=""
+
+_cc_hash() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+    elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+    elif command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1
+    elif command -v md5 >/dev/null 2>&1; then md5 -q "$1"
+    else cksum "$1" | cut -d' ' -f1; fi
+}
+
 for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
     [ -d "$skill_dir" ] || continue
     skill_name=$(basename "$skill_dir")
     mkdir -p ".claude/skills/$skill_name"
-    cp -R "$skill_dir"* ".claude/skills/$skill_name/"
-    echo "   ✓ /$skill_name"
+    skill_status="updated"
+
+    for src in "$skill_dir"*; do
+        [ -f "$src" ] || continue
+        base=$(basename "$src")
+        rel="$skill_name/$base"
+        dst=".claude/skills/$rel"
+        tpl_hash=$(_cc_hash "$src")
+
+        if [ ! -f "$dst" ]; then
+            cp "$src" "$dst"                       # new file — nothing to protect
+        else
+            disk_hash=$(_cc_hash "$dst")
+            recorded=$(grep "^$rel " "$SKILLS_MANIFEST" 2>/dev/null | head -1 | cut -d' ' -f2)
+            if [ "$disk_hash" = "$tpl_hash" ]; then
+                :                                  # already current
+            elif [ -n "$recorded" ] && [ "$disk_hash" = "$recorded" ]; then
+                cp "$src" "$dst"                   # pristine older version — safe
+            elif [ -z "$recorded" ]; then
+                # No manifest yet (first run on an existing install) and the file
+                # differs from the template. Cannot tell "older version" from
+                # "user edited", so assume the user's work matters.
+                cp "$src" "$dst.new"
+                skill_status="preserved"
+            else
+                cp "$src" "$dst.new"               # user-modified — keep theirs
+                skill_status="preserved"
+            fi
+        fi
+        echo "$rel $tpl_hash" >> "$NEW_MANIFEST"
+    done
+
+    if [ "$skill_status" = "preserved" ]; then
+        PRESERVED_SKILLS="$PRESERVED_SKILLS $skill_name"
+        echo -e "   ${YELLOW}~ /$skill_name (your version kept; new template at SKILL.md.new)${NC}"
+    else
+        echo "   ✓ /$skill_name"
+    fi
 done
+
+[ -f "$NEW_MANIFEST" ] && mv "$NEW_MANIFEST" "$SKILLS_MANIFEST"
+
+if [ -n "$PRESERVED_SKILLS" ]; then
+    echo -e "   ${YELLOW}Locally modified skills were not overwritten:${PRESERVED_SKILLS}${NC}"
+    echo -e "   ${YELLOW}Compare with: diff .claude/skills/<name>/SKILL.md{,.new}${NC}"
+    echo -e "   ${YELLOW}Take the new one with: mv .claude/skills/<name>/SKILL.md{.new,}${NC}"
+fi
 
 # Clean up the stray file left behind by the v2.11.0–v2.12.0 bug above. A bare
 # SKILL.md directly under skills/ is never a valid skill (skills live in
