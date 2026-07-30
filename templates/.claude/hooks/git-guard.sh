@@ -43,42 +43,62 @@ if echo "$CMD_NORM" | grep -qE 'hooks[/\\][a-z-]+\.sh'; then
     exit 0
 fi
 
+# Blank out the CONTENT of message-style arguments before matching. A commit
+# message that merely *describes* a destructive command is data — it can never
+# execute — but the text match could not tell the difference, so writing about
+# these commands blocked the commit:
+#     git commit -m "revert the git reset --hard change"   -> must pass
+#     git commit -m "x" && git reset --hard                -> must STILL block
+#
+# Only the argument to -m/--message/-F/--file is blanked, never quotes in
+# general. Stripping all quoted text would open a real hole, because these DO
+# execute what they quote and must keep matching:
+#     bash -c "git reset --hard"   eval "git clean -fd"   sudo git reset --hard
+#
+# Escaped quotes inside a message end the match early, leaving the tail to be
+# scanned — that direction is a false positive (one wasted turn), never a miss.
+SQ="'"
+CMD_SCAN=$(printf '%s' "$CMD_NORM" \
+    | sed -E 's/(^|[[:space:]])(-m|--message|-F|--file)[[:space:]]*"[^"]*"/\1\2 ARG/g' \
+    | sed -E "s/(^|[[:space:]])(-m|--message|-F|--file)[[:space:]]*${SQ}[^${SQ}]*${SQ}/\1\2 ARG/g" \
+    | sed -E 's/(^|[[:space:]])(-m|--message|-F|--file)[[:space:]]+[^[:space:]]+/\1\2 ARG/g')
+
 BLOCKED=""
 SUGGESTION=""
 
 # git checkout . / git checkout -- <file> (discard working tree changes)
 # But allow: git checkout <branch>, git checkout -b <branch>
-if echo "$CMD_NORM" | grep -qE 'git\s+checkout\s+(\.|--\s)'; then
+if echo "$CMD_SCAN" | grep -qE 'git\s+checkout\s+(\.|--\s)'; then
     BLOCKED="git checkout (discards uncommitted changes)"
     SUGGESTION="git stash"
 fi
 
 # git restore . / git restore <file> (without --staged)
-if echo "$CMD_NORM" | grep -qE 'git\s+restore\s' && ! echo "$CMD_NORM" | grep -qE 'git\s+restore\s+--staged'; then
+if echo "$CMD_SCAN" | grep -qE 'git\s+restore\s' && ! echo "$CMD_SCAN" | grep -qE 'git\s+restore\s+--staged'; then
     BLOCKED="git restore (discards uncommitted changes)"
     SUGGESTION="git stash"
 fi
 
 # git reset --hard
-if echo "$CMD_NORM" | grep -qE 'git\s+reset\s+--hard'; then
+if echo "$CMD_SCAN" | grep -qE 'git\s+reset\s+--hard'; then
     BLOCKED="git reset --hard (destroys all uncommitted changes)"
     SUGGESTION="git stash && git reset"
 fi
 
 # git clean -f / -fd / -fx
-if echo "$CMD_NORM" | grep -qE 'git\s+clean\s+-[a-z]*f'; then
+if echo "$CMD_SCAN" | grep -qE 'git\s+clean\s+-[a-z]*f'; then
     BLOCKED="git clean -f (permanently deletes untracked files)"
     SUGGESTION="git stash --include-untracked"
 fi
 
 # git branch -D (force delete unmerged branch)
-if echo "$CMD_NORM" | grep -qE 'git\s+branch\s+-D\s'; then
+if echo "$CMD_SCAN" | grep -qE 'git\s+branch\s+-D\s'; then
     BLOCKED="git branch -D (deletes branch even if not merged)"
     SUGGESTION="git branch -d (safe delete, fails if not merged)"
 fi
 
 # git push --force / -f (to main/master)
-if echo "$CMD_NORM" | grep -qE 'git\s+push\s+.*(-f|--force)' && echo "$CMD_NORM" | grep -qE '(main|master)'; then
+if echo "$CMD_SCAN" | grep -qE 'git\s+push\s+.*(-f|--force)' && echo "$CMD_SCAN" | grep -qE '(main|master)'; then
     BLOCKED="git push --force to main/master (rewrites shared history)"
     SUGGESTION="git push --force-with-lease"
 fi

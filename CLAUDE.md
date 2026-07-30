@@ -82,6 +82,13 @@ npx cc-discipline@latest upgrade
 - **Purpose**: Legacy bash CLI entry point. Still works for direct bash usage.
 - **Usage**: `bash bin/cli.sh [command] [args]`
 
+### tests/git-guard-matrix.sh
+- **Path**: `tests/git-guard-matrix.sh`
+- **Purpose**: Regression matrix for `git-guard.sh` — 25 cases split into "must still block" (bare destructive commands, compound `&&`/`;`, `bash -c`, `eval`, `sudo` prefix), "must pass" (commit messages *describing* destructive commands, `-m`/`--message`/`-F`, `grep -F`), and "safe commands still pass". **Run this after ANY change to git-guard's matching** — it is the only guard that prevents data loss, and a miss is unrecoverable while a false positive costs one turn.
+- **Usage**: `bash tests/git-guard-matrix.sh [path-to-git-guard.sh]` (defaults to the templates/ copy; pass `.claude/hooks/git-guard.sh` to check the installed one). Exits non-zero on any failure.
+- **Note**: builds payloads with `sed`-based escaping rather than `printf`, because `printf` silently eats a backslash level (see Known Pitfalls). Not shipped to npm — `tests/` is absent from package.json `files`.
+- **Created**: 2026-07-30 — alongside the v2.12.3 message-argument fix
+
 ---
 
 ## Code Style

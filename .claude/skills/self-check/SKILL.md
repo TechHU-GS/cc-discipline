@@ -86,6 +86,8 @@ Keep this list curated — remove tools that are obsolete.
 
 - `T=$(mktemp -d); cd "$T" && git init -q && bash <repo>/init.sh --auto --stack 7` then `bash <repo>/lib/status.sh` & `lib/doctor.sh` — run after touching init.sh / lib/status.sh / lib/doctor.sh, or after adding/removing a skill; confirms a fresh install actually copies everything and status/doctor see it (catches the "edited templates but forgot the install script" class of bug). Works with jq absent.
 - `for h in templates/.claude/hooks/*.sh; do echo '{"session_id":"t","tool_name":"Edit","tool_input":{"file_path":"x.sh"}}' | bash "$h"; done` — smoke-test hooks after editing them; confirms valid output and no jq-only breakage on Windows.
+- `bash tests/git-guard-matrix.sh` — **run after ANY change to git-guard matching.** 25 cases; a miss there loses uncommitted work and is unrecoverable, so this is the one check that must never be skipped. Also run it against the installed copy: `bash tests/git-guard-matrix.sh .claude/hooks/git-guard.sh`.
+- `grep -n 'jq -r' templates/.claude/hooks/*.sh` — every hit must sit inside a `command -v jq` branch that has an `else`. Five jq-only reads shipped broken before this was checked; git-guard's made the whole guard dead code on Windows.
 
 ## 7. What's working well?
 
