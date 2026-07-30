@@ -98,11 +98,30 @@ npx cc-discipline@latest upgrade
 - **macOS /tmp → /private/tmp**: `cwd` in hook JSON will be `/private/tmp/...`. Use both paths for file checks.
 - **npm bin path on Windows**: npm creates `.cmd` shims, bash scripts don't work directly. cli.js solves this.
 - **set -e on Git Bash**: Many commands fail silently on Windows due to path/command differences. Disabled for MINGW/MSYS.
-- **jq not always available**: Every hook MUST have grep/sed fallbacks for jq. Watch `session_id` especially — action-counter shipped jq-only through v2.10.x, so on Windows (no jq) every session collapsed to the literal `"unknown"` and shared one never-resetting global counter (it had climbed to 13065), silently killing the early-action phase check. Fixed v2.11.0 by mirroring streak-breaker's `jq`-or-`grep` pattern. When adding/editing a hook, smoke-test it with jq absent.
+- **jq not always available**: Every hook MUST have grep/sed fallbacks for jq — for EVERY field it reads, not just the obvious one. v2.11.0 fixed `session_id` in action-counter but left five other jq-only reads in place; the v2.12.0 audit found them, and one was severe: **git-guard read `tool_name` with jq only, so on Windows it exited 0 at the first check and every destructive-git guard in the file was dead code from day one** (`git reset --hard`, `git clean -fd`, `git checkout .` all passed silently — verified). post-error-remind was worse than useless: its no-jq path fell back to `OUTPUT="$RAW_INPUT"`, matching error patterns against the whole JSON envelope *including the command text*, so `grep -rn "permission denied" logs/` flagged itself.
+  **Guard against recurrence — run this before any release and after touching a hook:**
+  ```bash
+  # Every jq read must sit inside a `command -v jq` branch that has an else.
+  grep -n 'jq -r' templates/.claude/hooks/*.sh
+  # Then actually run them with jq absent (this repo's dev box has no jq):
+  for f in templates/.claude/hooks/*.sh; do bash -n "$f" || echo "SYNTAX $f"; done
+  ```
+  Choose the failure direction deliberately and write it in a comment: git-guard fails **loud** (a spurious confirmation costs one turn, a miss costs the user's work); post-error-remind fails **silent** (a false positive misleads).
 - **grep -c returns exit 1 on zero matches**: Use `VAR=$(grep -c ...) || VAR=0`, not `grep -c ... || echo "0"`.
-- **stat -f vs stat -c**: macOS uses `stat -f %m`, Linux uses `stat -c %Y`. action-counter tries both.
+- **stat -c BEFORE stat -f — the reverse is broken**: GNU stat (Linux, Windows Git Bash) uses `stat -c %Y`; BSD stat (macOS) uses `stat -f %m`. Order matters and is NOT symmetric: in GNU stat `-f` is not BSD's "format" flag, it means *show filesystem status* — so `stat -f %m file` SUCCEEDS on Git Bash and prints a multi-line filesystem dump, which means a `stat -f ... || stat -c ...` chain never reaches the fallback and the caller then does arithmetic on that dump. That is exactly what shipped: action-counter's progress.md staleness check spewed `syntax error in expression` on every 50th action on Windows and never worked there. `stat -c` on macOS is simply an invalid option, so it fails cleanly. Always try `-c` first, and validate the result is a bare integer (`case "$V" in ''|*[!0-9]*) V="" ;; esac`) before arithmetic. Fixed v2.12.0.
 - **Version must be bumped in package.json only**: init.sh reads from package.json via cli.js env var. No hardcoded versions.
-- **CRLF on Windows → macOS breakage**: `.gitattributes` forces `eol=lf` for .sh/.md/.json. Before npm publish, verify with `file init.sh` — must NOT show "with CRLF line terminators".
+- **CRLF on Windows → macOS breakage**: `.gitattributes` forces `eol=lf` for .sh/.md/.json **and .js**. `.js` was added 2026-07-30 after nearly shipping a broken 2.12.0: `bin/cli.js` is the npm `bin` target, so on macOS/Linux npm runs it via its shebang, and a CRLF file leaves a stray CR after `node` → `env: node: No such file or directory`. The CLI works fine as `node bin/cli.js` either way, which is why this hides.
+  **Two things that make this easy to miss — check both:**
+  - **`npm publish` packs the WORKING TREE, not git.** Git had `cli.js` as LF the whole time; only the Windows checkout was CRLF (`.gitattributes` didn't cover `.js`). A clean `git show` proves nothing about what ships.
+  - Verify with a scan that includes `.js`, not just `file init.sh`:
+    ```bash
+    find . -name node_modules -prune -o -name .git -prune -o -type f \
+      \( -name '*.sh' -o -name '*.md' -o -name '*.json' -o -name '*.js' \) -print \
+      | xargs file | grep CR
+    ```
+    Must print nothing. Check the shebang specifically with `head -1 bin/cli.js | cat -A` — it must end `node$`, not `node^M$`.
+- **`printf` in bash eats one backslash level — twice**: `printf 'a\\nb'` emits a REAL newline, and `printf 'x\\r'` emits a REAL carriage return. Writing a doc comment *about* `\r` this way silently injected a CR into `.gitattributes` (caught with `cat -A`). To emit a literal backslash sequence use `awk 'BEGIN{printf "a%cn", 92}'`, or just rephrase to avoid the escape. Same trap when building hook test payloads — see docs/progress.md Gotchas.
+- **`grep '\*\.js'` matches `*.json`**: guarding an append to `.gitattributes` with that pattern silently skipped the append. Anchor it: `grep -qE '^\*\.js[[:space:]]'`.
 
 ---
 

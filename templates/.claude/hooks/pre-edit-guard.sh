@@ -51,34 +51,54 @@ if [ -n "$DEBUG_LOG" ]; then
     CONFIRMED=$(echo "$CLEAN" | grep -c '| confirmed |' 2>/dev/null) || CONFIRMED=0
 
     if [ "$PENDING" -gt "$CONFIRMED" ] 2>/dev/null; then
-        cat >&2 <<EOF
-docs/debug-log.md has $((PENDING - CONFIRMED)) unverified hypotheses.
-Please complete the debugging process (verify or eliminate hypotheses) before editing source code.
-If you have confirmed the root cause, update debug-log.md first.
-EOF
-        exit 2
-    fi
-fi
-
-# ─── Large diff warning ───
-HAS_JQ=false
-command -v jq &>/dev/null && HAS_JQ=true
-
-if [ "$HAS_JQ" = true ]; then
-    NEW_STRING=$(echo "$INPUT" | jq -r '.tool_input.new_string // ""')
-    OLD_STRING=$(echo "$INPUT" | jq -r '.tool_input.old_string // ""')
-    NEW_LINES=$(echo "$NEW_STRING" | wc -l | tr -d ' ')
-    OLD_LINES=$(echo "$OLD_STRING" | wc -l | tr -d ' ')
-    DIFF_LINES=$((NEW_LINES > OLD_LINES ? NEW_LINES : OLD_LINES))
-    if [ "$DIFF_LINES" -gt 200 ]; then
-        echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"LARGE EDIT NOTE: This edit involves ${DIFF_LINES} lines. Consider: is this the minimal change needed? Could it be broken into smaller, more focused edits?\"}}"
+        # Downgraded from a hard block (exit 2) to a note, 2026-07-30.
+        # As a hard block this combined with 01-debugging Phase 2 to form a trap:
+        # follow the rule, write 3 hypotheses into debug-log.md, and you were then
+        # forbidden from editing source until 3 were marked confirmed — including
+        # for unrelated planned work. It is the "legacy harness scaffolding that
+        # adds separate verification steps" Anthropic's Opus 5 guidance calls out.
+        # The hypothesis discipline itself stays in rules 00-core §6 / 01-debugging
+        # (56 measured wrong-approach incidents); only the enforcement is relaxed.
+        cat <<JSONEOF
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"DEBUG-LOG NOTE: docs/debug-log.md has $((PENDING - CONFIRMED)) hypotheses still marked pending. If this edit is the fix for one of them, update its status first so the log stays truthful. If this edit is unrelated work, carry on."}}
+JSONEOF
         exit 0
     fi
 fi
 
+# ─── Large diff warning ───
+# Counts `content` too, not just new_string/old_string: Write sends `content`, so
+# the previous version silently never fired on a large Write. Has a no-jq path so
+# the "every jq read has an else" invariant holds repo-wide (see CLAUDE.md).
+if command -v jq &>/dev/null; then
+    NEW_LINES=$(echo "$INPUT" | jq -r '.tool_input.new_string // .tool_input.content // ""' | wc -l | tr -d ' ')
+    OLD_LINES=$(echo "$INPUT" | jq -r '.tool_input.old_string // ""' | wc -l | tr -d ' ')
+else
+    # Newlines arrive as the two-character sequence \n inside the JSON string.
+    count_lines() {
+        c=$(echo "$INPUT" | sed -n -E "s/.*[{,][[:space:]]*\"$1\"[[:space:]]*:[[:space:]]*\"(.*)\".*/\1/p" \
+            | grep -o '[\]n' | wc -l | tr -d ' ')
+        echo $((c + 1))
+    }
+    NEW_LINES=$(count_lines new_string)
+    [ "$NEW_LINES" -le 1 ] && NEW_LINES=$(count_lines content)
+    OLD_LINES=$(count_lines old_string)
+fi
+DIFF_LINES=$((NEW_LINES > OLD_LINES ? NEW_LINES : OLD_LINES))
+if [ "$DIFF_LINES" -gt 200 ]; then
+    echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"LARGE EDIT NOTE: This edit involves ${DIFF_LINES} lines. Consider: is this the minimal change needed? Could it be broken into smaller, more focused edits?\"}}"
+    exit 0
+fi
+
 # ─── New tool/script detection ───
 # When creating a script file via Write, remind to register in CLAUDE.md
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
+# jq-or-sed: the previous jq-only line left TOOL_NAME empty on Windows Git Bash,
+# so this detection never fired there. (fixed 2026-07-30)
+if command -v jq &>/dev/null; then
+    TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
+else
+    TOOL_NAME=$(echo "$INPUT" | sed -n -E 's/.*"tool_name"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' | head -1)
+fi
 if [ "$TOOL_NAME" = "Write" ] && echo "$BASENAME" | grep -qiE "\.(sh|py|js|ts|rb|pl)$"; then
     # Check if file already exists (new file = tool creation)
     FULL_PATH="$FILE_PATH"

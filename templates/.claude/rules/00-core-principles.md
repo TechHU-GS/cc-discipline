@@ -5,7 +5,7 @@ description: "Core working principles — auto-injected before all operations"
 
 ## Core Principles
 
-1. **Understand before acting** — Before modifying any file, state: what you're changing, why, and the expected impact
+1. **Understand before acting** — Know what you're changing, why, and what it affects before you edit. State the reasoning when it isn't evident from the change itself; don't narrate routine edits
 2. **Don't lock onto the first explanation** — After finding a suspected cause, list >=2 alternative hypotheses before acting
 3. **Minimal change, minimal complexity** — No large-scale refactors unless explicitly requested. When proposing solutions, prefer the simplest approach that meets requirements. If a lightweight solution exists, choose it over a heavyweight one unless the user asks for more.
 4. **3 consecutive failures → pause and regroup** — Report current state, attempted solutions, and points of confusion. Fresh perspective from the user often unblocks what repetition cannot.

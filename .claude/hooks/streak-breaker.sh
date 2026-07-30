@@ -4,8 +4,8 @@
 # Pauses for reflection when the pattern suggests circling
 #
 # Design:
-#   - Source code files (.java/.ts/.py/.go etc): warn at 3, stop at 5
-#   - Config/doc files (.md/.json/.yaml/.xml etc): warn at 6, stop at 10
+#   - Source code files (.java/.ts/.py/.go etc): warn at 6, stop at 10
+#   - Config/doc files (.md/.json/.yaml/.xml etc): warn at 10, stop at 16
 #   - docs/ directory: exempt (always allow)
 #
 # Exit 0 + no output = silent allow
@@ -41,13 +41,20 @@ fi
 BASENAME=$(basename "$FILE_PATH")
 
 if echo "$BASENAME" | grep -qiE "\.(md|json|yaml|yml|toml|xml|cfg|ini|properties|gitignore)$"; then
-    # Config/doc files: higher thresholds (many independent sections to fill)
+    # Config/doc files: higher thresholds (many independent sections to fill).
+    # Raised 6/10 -> 10/16 on 2026-07-30 to keep this tier above the source tier
+    # after source was raised to 6/10.
+    WARN_THRESHOLD=10
+    STOP_THRESHOLD=16
+else
+    # Source code files: repeated edits may indicate circling.
+    # Raised from 3/5 to 6/10 on 2026-07-30. Opus 5 completes multi-file features
+    # and larger refactors end-to-end rather than in one pass per file, so 5 edits
+    # to one source file is now common in legitimate feature work — the old
+    # thresholds fired on progress, not on circling. Circling that is actually
+    # worth interrupting still shows up well before 10.
     WARN_THRESHOLD=6
     STOP_THRESHOLD=10
-else
-    # Source code files: strict thresholds (repeated edits may indicate circling)
-    WARN_THRESHOLD=3
-    STOP_THRESHOLD=5
 fi
 
 # Counter logic

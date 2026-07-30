@@ -4,9 +4,15 @@
 # stdout → context (Claude can see and act on it)
 # Fires on: startup, resume, clear, compact
 
-# Reset action counter for this session
+# Reset action counter for this session.
+# jq-or-sed: jq is absent on Windows Git Bash, and the previous jq-only version
+# left SESSION_ID empty there, so the reset below never ran. (fixed 2026-07-30)
 INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
+if command -v jq &>/dev/null; then
+    SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
+else
+    SESSION_ID=$(echo "$INPUT" | sed -n -E 's/.*"session_id"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' | head -1)
+fi
 if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "unknown" ]; then
     rm -f "/tmp/cc-discipline-${SESSION_ID}/action-count"
 fi
@@ -31,14 +37,14 @@ Verify project status by reading files or asking — don't assume beyond what is
 EOF
 fi
 
+# Only the skill pointer is injected here. The four rule restatements that used
+# to follow it (pre-edit checks, 3-failure rule, confirm-before-implementing,
+# verify project state) were removed 2026-07-30: all four are already in the
+# rules injected every session (02, 00-core §4, 05, 07 §4a), so repeating them
+# here bought nothing. Skills are the one thing rules don't announce.
 cat <<'EOF'
 
-Reminders:
-- /self-check available for periodic monitoring. For complex tasks: /loop 10m /self-check
-- Before editing: root cause identified? scope respected? change recorded?
-- 3 consecutive failures → pause and regroup with the user
-- Confirm the approach with the user before starting implementation
-- Verify project state (phase, status, dependencies) by reading files or asking
+/self-check is available for periodic monitoring — for long tasks: /loop 10m /self-check
 EOF
 
 exit 0

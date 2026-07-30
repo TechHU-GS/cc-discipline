@@ -5,13 +5,12 @@
 - During debugging → update `docs/debug-log.md` (hypotheses, evidence, elimination results)
 - When making architectural decisions → record the decision and reasoning in progress.md
 
-### Parallel Execution
-- **Don't do everything single-threaded.** When a task has independent parts, use subagents or tasks to work on them in parallel. Examples:
-  - Investigating 3 debug hypotheses → spawn 3 agents, each verifies one
-  - Researching multiple files/modules → one agent per area, summarize results
-  - Independent subtasks in a plan → parallel agents for non-dependent steps
-- **Keep the main conversation for decisions, not research.** Subagents do the reading and exploring; the main conversation synthesizes and decides.
-- **When to parallelize:** if two subtasks don't depend on each other's output, they should run concurrently, not sequentially.
+### Delegation
+- **Delegate for isolation and genuine parallelism — not by default.** A subagent earns its cost when the work is sizeable, genuinely independent, and would otherwise flood the main conversation: a wide multi-file investigation, one agent per area of a broad survey.
+- **Work directly** on single-file edits, short sequences of tool calls, and anything where you need to carry context across steps. If you can finish it in a handful of tool calls, don't delegate it.
+- **Never delegate verification.** Don't spawn agents to double-check or re-verify your own work.
+- **Keep spawn counts low.** If one subagent can do the job, use one rather than several.
+- **Keep the main conversation for decisions.** When you do delegate research, the subagent reads and reports; the main conversation synthesizes and decides.
 
 ### Compact Strategy
 - Avoid proactively suggesting compacting or warning about "context running low." The system auto-compacts when context hits 0% — there is no advance warning, and you cannot see the percentage. With 200K-1M context, most sessions never hit the limit. The urge to say "this session is getting long" is understandable in a long session, but it's not based on information you have access to — the system will handle it. Focus on the work.

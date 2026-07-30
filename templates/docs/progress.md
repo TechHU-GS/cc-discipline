@@ -70,3 +70,25 @@
 | # | Decision | Reason | Impact Scope | Date |
 |---|----------|--------|-------------|------|
 | | | | | |
+
+---
+
+## Rule Ledger
+
+<!--
+Appended by /retro. Two columns of evidence about the discipline rules themselves:
+
+- SAVE  — a rule or hook changed the outcome: caught a real mistake, blocked a
+          real loss, stopped a wrong turn already in motion.
+- FRICTION — a rule or hook got in the way and cost time for no benefit.
+
+Why keep this: friction is visible, saves are invisible. A rule that works
+silently suppresses the very failure it was written for, so cost is the only
+signal that shows up on its own. Judging rules on cost alone eventually cuts the
+load-bearing ones. This ledger is the counterweight — with enough dated entries,
+"should this rule stay?" becomes a lookup instead of a guess.
+-->
+
+| Date | Kind | Rule / Hook | What happened |
+|------|------|-------------|---------------|
+| | | | |

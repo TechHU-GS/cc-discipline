@@ -3,8 +3,6 @@
 # Counts action-type tool calls per session, injects self-check every N actions.
 # PreToolUse on Edit|Write|MultiEdit|Bash|Agent — additionalContext injection.
 
-THRESHOLD=25
-
 INPUT=$(cat)
 # Extract session_id with a grep fallback for when jq is unavailable (e.g.
 # Windows Git Bash). Without this fallback, every session collapsed to the
@@ -36,14 +34,29 @@ fi
 
 # Progress.md staleness check: every 50 actions, check if progress.md was updated recently
 if [ $((COUNT % 50)) -eq 0 ]; then
-    CWD=$(echo "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
+    if command -v jq &>/dev/null; then
+        CWD=$(echo "$INPUT" | jq -r '.cwd // ""' 2>/dev/null)
+    else
+        CWD=$(echo "$INPUT" | sed -n -E 's/.*"cwd"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' | head -1 | sed 's/[\][\]/\//g')
+    fi
     PROGRESS_FILE=""
     [ -f "$CWD/docs/progress.md" ] && PROGRESS_FILE="$CWD/docs/progress.md"
     [ -z "$PROGRESS_FILE" ] && [ -f "docs/progress.md" ] && PROGRESS_FILE="docs/progress.md"
     if [ -n "$PROGRESS_FILE" ]; then
-        # Check if file was modified in the last 30 minutes
+        # Check if file was modified in the last 30 minutes.
+        # GNU stat (Linux, Windows Git Bash) FIRST, BSD stat (macOS) second —
+        # this order matters and the reverse is broken: in GNU stat, `-f` is not
+        # BSD's "format" flag, it means "show filesystem status". It therefore
+        # SUCCEEDS on Git Bash and prints a multi-line filesystem dump, so the
+        # `||` fallback never ran and $((NOW - FILE_MOD)) died with "syntax error
+        # in expression". `stat -c` is simply an invalid option on macOS, so it
+        # fails cleanly and falls through. The numeric guard below makes the
+        # failure mode silent either way. (fixed 2026-07-30)
         if command -v stat &>/dev/null; then
-            FILE_MOD=$(stat -f %m "$PROGRESS_FILE" 2>/dev/null || stat -c %Y "$PROGRESS_FILE" 2>/dev/null)
+            FILE_MOD=$(stat -c %Y "$PROGRESS_FILE" 2>/dev/null || stat -f %m "$PROGRESS_FILE" 2>/dev/null)
+            case "$FILE_MOD" in
+                ''|*[!0-9]*) FILE_MOD="" ;;
+            esac
             NOW=$(date +%s)
             if [ -n "$FILE_MOD" ] && [ $((NOW - FILE_MOD)) -gt 1800 ]; then
                 STALE_MIN=$(( (NOW - FILE_MOD) / 60 ))
@@ -56,10 +69,14 @@ JSONEOF
     fi
 fi
 
-if [ $((COUNT % THRESHOLD)) -eq 0 ]; then
-    cat <<JSONEOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Periodic reflection (#${COUNT} actions): Take a moment to check in. ALIGNMENT: (1) Am I still serving the user's current direction? They may have pivoted — follow their latest intent. (2) Am I making changes the user asked for, and only those? QUALITY: (3) Are all my 'verified' claims backed by actual execution output? If not, correct that now. (4) If executing a plan, does what I delivered match what the step asked for? Check acceptance criteria. (5) Am I maintaining quality, or taking shortcuts to avoid difficulty? If tempted to cut corners, ask the user instead. PROGRESS: (6) Am I progressing or circling? (fixing the same area repeatedly suggests a deeper issue worth stepping back to find) (7) Is docs/progress.md up to date? If auto-compact happened now, could a fresh session resume from it? (8) Did I break a task into subtasks and skip some? If the analysis context is fresh, finishing them now is cheaper than rebuilding later. WHAT'S WORKING: (9) Note one thing going well — a good approach, a clean fix, or effective tool use. (10) Any friction from hooks or rules since last check? Note it for /retro. If any answer is concerning, pause and report to the user before continuing."}}
-JSONEOF
-fi
+# The 25-action, 10-question "Periodic reflection" block was removed 2026-07-30.
+# Anthropic's Opus 5 guidance: the model verifies its own work without being told
+# to, and "legacy harness scaffolding that adds separate verification steps"
+# causes over-verification — it compounds with the model's own behavior and adds
+# cost with no quality gain. The block also duplicated rules already injected
+# every session (00-core, 03, 06, 07), at ~299 tokens per firing. The remaining
+# checks above (early-action phase check, progress.md staleness) are kept: both
+# came out of the 112-session insights analysis in v2.4.0 and target failure
+# modes we actually measured, not generic self-review.
 
 exit 0

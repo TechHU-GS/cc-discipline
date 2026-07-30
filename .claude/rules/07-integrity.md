@@ -77,16 +77,3 @@ When you discover wrong information in memory, docs, or prior output:
 1. Correct it now, not "next time"
 2. Note the correction and why, to prevent recurrence
 3. If wrong information was already sent externally, alert the user
-
----
-
-## Pre-action Checklist
-
-Before any significant action, verify:
-
-- [ ] Are my assumptions verified, or inferred from names/context?
-- [ ] Are my "verified" claims actually backed by execution output?
-- [ ] Am I quoting tool output verbatim, or have I altered it?
-- [ ] Is the external information I'm referencing current?
-- [ ] Does this content go external? Has the user reviewed it?
-- [ ] Is there anything I wrote confidently but am actually unsure about?

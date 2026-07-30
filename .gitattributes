@@ -3,3 +3,8 @@
 # Markdown and JSON are safe with LF too
 *.md text eol=lf
 *.json text eol=lf
+# The JS entry point must be LF too. It is the npm `bin` target, so on
+# macOS/Linux npm runs it through its shebang line — and a CRLF file leaves a
+# stray carriage return after "node", which makes env fail with
+# "No such file or directory". Missed by the v2.10.2 CRLF pass; caught 2026-07-30.
+*.js text eol=lf

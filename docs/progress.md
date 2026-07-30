@@ -6,10 +6,11 @@
 
 ## Current Status
 
-- **In progress**: v2.11.0 — bundle of: (1) new /finish skill + /think `and finish` wiring; (2) self-check progress.md auto-update + `disallowed-tools: AskUserQuestion`; (3) soundness-review red items: install scripts directory-driven (init/status/doctor glob `skills/*/`), pre-edit-guard per-edit bug-fix nag removed, action-counter session_id bug fixed (jq-only → grep fallback). All verified, **not yet committed/published**.
-- **Last updated**: 2026-06-05
-- **Next steps**: commit + publish v2.11.0 (install propagation already verified). Optional: store CC 2.1.154 facts + session_id-fallback lesson as memory; revisit yellow/strategic items (plugin-ization, git tags, /investigate vs native workflows).
-- **Published**: v2.10.1 (tone rewrite), v2.10.2 (CRLF hotfix + .gitattributes), v2.10.3 (self-check Project-specific Checks)
+- **In progress (this session)**: v2.12.0 — Opus 5 adaptation audit + platform bug fixes. Version bumped in package.json, **NOT yet committed, NOT yet published**. See milestone 2026-07-30 below. Second bucket (evidence-backed rules) deliberately frozen pending 2-3 weeks of real Opus 5 usage data.
+- **Last shipped**: v2.11.0 — (1) new /finish skill + /think `and finish` wiring; (2) self-check progress.md auto-update + `disallowed-tools: AskUserQuestion`; (3) soundness-review red items: install scripts directory-driven, pre-edit-guard per-edit bug-fix nag removed, action-counter session_id bug fixed. **Committed (ac52b72), pushed, published to npm 2026-06-05**.
+- **Last updated**: 2026-07-30
+- **Next steps**: (1) Commit + publish v2.12.0. (2) Refresh the stale `~/.claude/CLAUDE.md` — the installed copy is dated Apr 16 and still says "Proactively warn when context is nearly full", contradicting both `global/CLAUDE.md:44` and rule 03. (3) After 2-3 weeks of Opus 5 use, read the new Rule Ledger and decide the frozen bucket. Security: the npm token pasted in chat 2026-06-05 should be rotated.
+- **Published**: v2.10.1 (tone rewrite), v2.10.2 (CRLF hotfix + .gitattributes), v2.10.3 (self-check Project-specific Checks), v2.11.0 (/finish + friction fixes + framework hardening)
 
 ---
 
@@ -48,7 +49,7 @@ node bin/cli.js --version
 
 ### Environment State
 - Branch: main
-- Latest npm: 2.10.3 published; 2.11.0 staged (uncommitted)
+- Latest npm: 2.11.0 published (2026-06-05)
 - macOS + Windows tested
 
 ### Gotchas Discovered
@@ -56,6 +57,12 @@ node bin/cli.js --version
 - `node -p "require('...')"` fails on Windows with Unix-style drive paths — fixed by passing VERSION via env var.
 - init.sh MEMORY.md template overwrites existing memory when running on self — need to restore after dogfood install
 - `test` in filename matches the `test|spec` regex in pre-edit-guard, causing early exit — use filenames without "test" for hook testing
+- **Building hook test payloads**: `printf 'line\\n'` in bash emits a REAL newline, not the two-char `\n` that real hook JSON contains. Malformed payloads make working hooks look broken. Use `awk 'BEGIN{printf "line%cn", 92}'` (92 = backslash) to get a literal `\n`. Same trap bit twice in one session: writing a `.gitattributes` comment *about* `\r` via `printf` injected a real carriage return into the file. Always `cat -A` after a printf that contains backslashes.
+- **`grep '\*\.js'` matches `*.json`** — a guard against duplicate-appending `*.js` to `.gitattributes` silently did nothing. Anchor patterns like this: `grep -qE '^\*\.js[[:space:]]'`.
+- **`.md`/`.json`/`.yaml` files early-exit pre-edit-guard** (config-exempt) before the large-diff check — don't use `CLAUDE.md` to test large-diff behaviour; use an existing `.py`/`.sh`.
+- **Rules `00` and `07` carry YAML frontmatter, the other six don't.** CLAUDE.md rule injection strips frontmatter, so it is invisible when reading rules through injected context — check the file on disk before assuming a rule starts at `## `.
+- **git-guard matches command TEXT**, so any command that merely quotes a destructive git command trips it — including CLAUDE.md's own documented hook-test command. There is a narrow exemption for commands piping into `hooks/*.sh`; extend that rather than weakening the patterns.
+- **This dev box has no `jq`** (`command -v jq` → absent). That is a feature for testing: hooks can be exercised on their real Windows no-jq path directly, no sandbox needed.
 
 ---
 
@@ -161,6 +168,34 @@ node bin/cli.js --version
 
 ---
 
+### 2026-07-30 — v2.12.0: Opus 5 adaptation audit + 4 platform bugs
+
+**What**: Audited all 33 framework artifacts against Anthropic's official Opus 5 guidance, then applied a split cleanup. Found and fixed 4 pre-existing platform bugs that were more serious than the adaptation issue itself.
+
+**How** — the 4 bugs (all verified by running the hooks with `jq` absent, which is this dev box's real state):
+1. **git-guard was entirely dead on Windows.** It read `tool_name` with jq only; with no jq that yielded `""`, so `[ "$TOOL_NAME" != "Bash" ]` was true and the script exited 0 at line 9 — every destructive-git guard below it was unreachable. `git reset --hard`, `git clean -fd`, `git checkout .` all passed silently. Fixed with a jq-or-sed branch; the tool_name gate now only applies when tool_name actually resolved. 13/13 regression cases pass.
+2. **post-error-remind matched the whole JSON envelope.** Its no-jq path did `OUTPUT="$RAW_INPUT"`, and the command text lives in that envelope — so `grep -rn "permission denied" logs/` flagged itself. It also couldn't skip non-Bash tools (jq-only tool_name). Fired 3× on this session's own audit commands. Now extracts `.error`/`.output` via sed and **exits 0 if it can't isolate them** (false positives mislead, so silence is the safe direction here — the opposite choice from git-guard, which fails loud). 10/10 cases pass.
+3. **`stat -f` before `stat -c` is backwards.** In GNU stat (Linux, Git Bash) `-f` is not BSD's format flag — it means "show filesystem status", so it *succeeds* and prints a multi-line dump, meaning the `||` fallback never ran and the caller did arithmetic on the dump. action-counter's progress.md staleness check emitted `syntax error in expression` every 50th action and never worked on Windows. Reversed to `-c` first + a bare-integer guard.
+4. **Two silently-dead detections**: pre-edit-guard's new-script reminder (jq-only tool_name) and its large-diff warning (jq-only, *and* it read only `new_string`, so a large `Write` — which sends `content` — never triggered it even with jq).
+5. **`bin/cli.js` had a CRLF shebang — caught by the pre-publish check, one command before publishing.** It is the npm `bin` target, so on macOS/Linux npm runs it through `#!/usr/bin/env node`; the trailing CR makes that `env: node\r: …` → "No such file or directory". Two reasons it hid: the CLI works fine when invoked as `node bin/cli.js` (the shebang is never used), and **git had it as LF all along** — only the Windows checkout was CRLF, because `.gitattributes` covered `.sh/.md/.json` but not `.js`. Since `npm publish` packs the working tree rather than git, a clean `git show` proves nothing. Fixed the file, added `*.js text eol=lf`, and replaced the `file init.sh` spot-check in CLAUDE.md with a repo-wide scan that includes `.js`.
+
+**How** — the cleanup, split by evidence rather than by aggressiveness:
+- **Aggressive on hooks** (cheap to revert, per-action cost, and where the officially-condemned patterns live): removed action-counter's 25-action 10-question reflection (~299 tok/firing); cut post-error-remind's ≥3-hypotheses ritual to one line; **downgraded pre-edit-guard's debug-log block from `exit 2` to a note** — as a hard block it combined with 01-debugging Phase 2 into a trap (write 3 hypotheses as instructed → now forbidden from editing source until 3 are confirmed, including for unrelated work); raised streak-breaker 3/5→6/10 (source) and 6/10→10/16 (config); cut session-start's 4 rule restatements, keeping only the skill pointer.
+- **Aggressive on unsourced rules**: deleted `02` Post-Edit Checklist, `07` Pre-action Checklist, `03` Parallel Execution (which told Claude to "spawn 3 agents, each verifies one" — Anthropic's guidance forbids this verbatim), softened `00` §1's mandatory narration, and replaced `/think`'s parallel-delegation bullet. All were absent from every prior milestone — added because they sounded like good discipline, not after an observed failure.
+- **Conservative on sourced rules — frozen, untouched**: `00` §6 + `01-debugging` (v2.3.1: **56 counted wrong-approach incidents**), `05-phase` + `07` §4a (v2.4.0: **112-session insights, phase discipline was the #2 friction source**), `07` §2/§3/§5, `03`'s encouragement section (v2.3.1: added because punishment-only phrasing measurably raised anxiety), `/investigate`, `/self-check`.
+
+**Why this approach**: Official guidance is a *population-level prior about Opus 5*, not a verdict on our specific rules. Rules written after a measured failure carry local evidence that a prior shouldn't override; rules with no provenance have only the prior, which now points at deletion. The split follows from that, plus a cost asymmetry: hook noise costs tokens (recoverable, instantly visible) while a missing integrity rule costs a false claim reaching the user (not recoverable). Quantified check that settled it: aggressively cleaning *rules* would save **455 tok — 0.045% of a 1M window** — while the per-action hook noise was multiples of the entire rules footprint. The old "<3% of 200K" footprint constraint is now 0.47%; the reason to trim is behavioral interference, not context cost.
+
+**Decisive datum for freezing**: `~/.claude/projects/` holds 501 transcripts. Model distribution: opus-4-8 ×192, opus-4-6 ×91, fable-5 ×56, sonnet-4-6 ×48, haiku-4-5 ×14, opus-4-7 ×9, **opus-5 ×3 — all three dated 2026-07-30, ~2 hours total, including the audit session itself**. The 56-incident/112-session evidence was gathered in March 2026 on Opus 4.6/4.7. So: strong measured evidence about a different model, an official prior about this one, zero local data on this one. Deleting the measured findings now would trade evidence for a prior.
+
+**Measurement gap closed**: `/retro` only ever recorded *friction*, never *saves*. A working rule silently suppresses the failure it was written for, so cost is the only signal that surfaces on its own — judge on cost alone and every rule eventually looks like overhead, including load-bearing ones. Added a `Saves:` section with an explicit "a save is not 'what went well'" bar, plus a `## Rule Ledger` table in progress.md (and the template) that retro appends to each session. This is what makes the frozen bucket decidable with evidence in 2-3 weeks instead of by guess.
+
+**Gotchas**: `printf 'line\\n'` in bash yields a REAL newline, not the two-char `\n` — building test payloads that way silently produced malformed JSON and made the large-diff test look like a hook failure. Use `awk 'BEGIN{printf "line%cn", 92}'`. Also: rules `00` and `07` carry YAML frontmatter (the others don't); CLAUDE.md rule injection strips it, so it's invisible when reading rules through context. And git-guard matches command *text*, so any command quoting a destructive git command trips it — including the hook-test command documented in CLAUDE.md; added a narrow exemption for commands piping into `hooks/*.sh`.
+
+**Verification**: All with `jq` absent. `bash -n` clean on all 7 hooks. git-guard 13/13 (6 destructive blocked incl. newline-separated, 6 safe passed, hook-test exempted). post-error-remind 10/10 (5 silent incl. the exact former false positive, 5 firing incl. `.error` field). action-counter: #1–3 phase check fires, #4 and #25 silent (reflection gone), #50 silent on a fresh file and fires "45min" on a backdated one (staleness check working on Windows for the first time). streak-breaker: #5 silent, #6/#9 warn, #10 blocks. pre-edit-guard: 250-line Edit and 250-line Write both warn, 3-line versions silent, new-script fires. Repo sweep for stale references to removed sections: clean. All `.sh`/`.md` confirmed LF, no CRLF. templates/ and .claude/ byte-identical except skills/self-check (untouched, holds local Project-specific Checks) and rules/stacks (untouched).
+
+---
+
 ## Key Decisions
 
 | # | Decision | Reason | Impact Scope | Date |
@@ -174,3 +209,34 @@ node bin/cli.js --version
 | 7 | StatusLine opt-in interactive only | Don't modify user's global settings without asking | init.sh | 2026-04-04 |
 | 8 | Tone rewrite: 赏罚分明 not uniformly soft | Real failures need firm language; only the framing changes | All rules, hooks, skills | 2026-04-08 |
 | 9 | /finish as independent skill + /think wiring (composition, not integration) | Keeps /think pure, allows standalone use, and `and finish` declares post-approval stance without bypassing the 05-phase gate | /finish, /think, init/status/doctor | 2026-06-05 |
+| 10 | Cleanup split by **evidence provenance**, not by aggressiveness | Official Opus 5 guidance is a population-level prior; rules written after a measured failure carry local evidence a prior shouldn't override. Rules with no provenance have only the prior — which now says delete | All rules, hooks | 2026-07-30 |
+| 11 | Aggressive on hooks, conservative on rules | Cost is in hooks (per-action, multiples of the whole rules footprint); hooks are one-file revertible and their firing is observable, so removals stay attributable. Cleaning rules would save 455 tok = 0.045% of 1M | hooks vs rules | 2026-07-30 |
+| 12 | Freeze evidence-backed rules pending Opus 5 data | Only 3 Opus 5 sessions exist (~2h, all 2026-07-30) vs 501 transcripts overall; the 56-incident/112-session basis was gathered on Opus 4.6/4.7 | 00§6, 01, 05, 07§4a, /investigate | 2026-07-30 |
+| 13 | Hook failure direction must be chosen per hook and commented | git-guard fails loud (spurious prompt costs a turn, a miss costs the user's work); post-error-remind fails silent (false positives mislead). Same bug class, opposite correct answers | git-guard, post-error-remind | 2026-07-30 |
+| 14 | Record rule **saves**, not just friction | A working rule suppresses the failure it was written for, so only its cost is naturally observable; cost-only data eventually cuts load-bearing rules | /retro, progress.md Rule Ledger | 2026-07-30 |
+
+---
+
+## Rule Ledger
+
+<!--
+Appended by /retro. Two kinds of evidence about the discipline rules themselves:
+
+- SAVE     — a rule or hook changed the outcome: caught a real mistake, blocked a
+             real loss, stopped a wrong turn already in motion.
+- FRICTION — a rule or hook got in the way and cost time for no benefit.
+
+Why keep this: friction is visible, saves are invisible. A rule that works
+silently suppresses the very failure it was written for, so cost is the only
+signal that shows up on its own. Judging rules on cost alone eventually cuts the
+load-bearing ones. This is the counterweight — with enough dated entries,
+"should this rule stay?" becomes a lookup instead of a guess.
+
+Immediate purpose (2026-07-30): decide the frozen bucket — 00 §6, 01-debugging,
+05-phase, 07 §4a, /investigate — after 2-3 weeks of real Opus 5 use.
+-->
+
+| Date | Kind | Rule / Hook | What happened |
+|------|------|-------------|---------------|
+| 2026-07-30 | FRICTION | post-error-remind | Fired 3× on this session's own audit commands because the no-jq path matched the whole JSON envelope. Root cause fixed in v2.12.0, not a tuning issue. |
+| 2026-07-30 | FRICTION | action-counter reflection | 10-question block fired at #25 and #50 mid-audit; nothing in it was actionable at that moment. Removed in v2.12.0. |

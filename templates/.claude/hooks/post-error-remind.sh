@@ -29,11 +29,25 @@ if command -v jq &>/dev/null; then
     if [ -z "$OUTPUT" ]; then
         OUTPUT=$(echo "$RAW_INPUT" | jq -r '.tool_response.output // empty' 2>/dev/null)
     fi
+else
+    # jq is absent on Windows Git Bash. Extract the same two fields with sed.
+    # Unescape \n so the line-anchored patterns below (^ERROR, ^Traceback, ...)
+    # still work.
+    TOOL_NAME=$(echo "$RAW_INPUT" | sed -n -E 's/.*"tool_name"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' | head -1)
+    OUTPUT=$(echo "$RAW_INPUT" | sed -n -E 's/.*[{,][[:space:]]*"(error|output)"[[:space:]]*:[[:space:]]*"(.*)".*/\2/p' | head -1 \
+        | sed 's/[\]n/\
+/g; s/[\]"/"/g')
 fi
 
-# Fallback if jq unavailable
+# NEVER match against the raw JSON envelope. The command text lives in there
+# too, so `grep -rn "permission denied" logs/` used to flag itself — and with
+# tool_name unresolved the non-Bash early-exit below never fired either, so this
+# hook lectured on clean Read calls. Both were the old `OUTPUT="$RAW_INPUT"`
+# fallback. If the tool's own output can't be isolated, stay silent: a false
+# positive here costs a turn and misleads, so silence is the safe direction.
+# (fixed 2026-07-30 — verified with jq absent, see docs/progress.md)
 if [ -z "$OUTPUT" ]; then
-    OUTPUT="$RAW_INPUT"
+    exit 0
 fi
 
 # --- Early exits for known non-error situations ---
@@ -97,14 +111,14 @@ fi
 # --- Emit reminder if error detected ---
 
 if [ "$HAS_ERROR" = true ]; then
-    REMINDER="Error encountered — debugging checklist: 1. Resist modifying code immediately 2. Fully understand the error message 3. List >=3 possible causes — label them hypotheses, not root cause 4. Record in docs/debug-log.md 5. Eliminate >=2 hypotheses with evidence before identifying root cause 6. Only then fix. Important: after seeing one error, the first explanation is a hypothesis, not a conclusion. Say 'possible cause' until you have elimination evidence."
+    # Keep this to ONE line. The hypothesis discipline itself lives in the
+    # always-injected rules (00-core §6, 01-debugging) — re-injecting the full
+    # ">=3 causes / record in debug-log / eliminate >=2" ritual on every error
+    # duplicated them and pushed toward over-verification. Trimmed 2026-07-30.
+    REMINDER="Error detected: the first explanation that comes to mind is a hypothesis, not the root cause. Read the actual error before changing code."
 
     if [ "$ERROR_TYPE" = "test" ]; then
-        REMINDER="$REMINDER Note: Test failure — before changing the test, first determine if it's a code bug or an outdated test."
-    fi
-
-    if [ "$ERROR_TYPE" = "crash" ]; then
-        REMINDER="$REMINDER Note: Crash/segfault — may involve memory issues."
+        REMINDER="$REMINDER Test failure — decide whether the code is wrong or the test is outdated before touching either."
     fi
 
     echo "$REMINDER" >&2

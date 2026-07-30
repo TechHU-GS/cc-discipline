@@ -73,7 +73,7 @@ Rules:
 - Flag risks or unknowns you've spotted
 - **Every step must have acceptance criteria** — "done when" must be observable and verifiable, not vague. Bad: "done when refactored". Good: "done when 3 methods extracted, each ≤20 lines, all tests pass"
 - **Simplicity bias** — If a simple approach meets all requirements, list it first and recommend it. Do NOT lead with complex/elegant solutions unless the user signals they want that. "Simple but sufficient" beats "powerful but overkill".
-- **Mark parallel opportunities** — In the steps, annotate which can run concurrently (via subagents/tasks) and which have dependencies. Don't default to sequential when parallel is possible.
+- **Note real dependencies** — Mark which steps depend on which. Don't annotate steps for parallel delegation by default; see 03-context-mgmt "Delegation" for when a subagent is actually warranted.
 
 ## Step 4: Self-review
 
