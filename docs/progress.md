@@ -169,7 +169,7 @@ node bin/cli.js --version
 
 ---
 
-### 2026-07-30 — v2.12.0: Opus 5 adaptation audit + 4 platform bugs
+### 2026-07-30 — v2.12.0/2.12.1: Opus 5 adaptation audit + 6 platform bugs
 
 **What**: Audited all 33 framework artifacts against Anthropic's official Opus 5 guidance, then applied a split cleanup. Found and fixed 4 pre-existing platform bugs that were more serious than the adaptation issue itself.
 
@@ -244,3 +244,4 @@ Immediate purpose (2026-07-30): decide the frozen bucket — 00 §6, 01-debuggin
 | 2026-07-30 | SAVE + FRICTION | git-guard | **First proof of life since the v2.12.0 fix — and immediately a false positive.** It blocked the commit for this very release, because the commit message *described* the destructive commands it guards against and the guard matches command TEXT. SAVE side: it is demonstrably alive on Windows now, where it had never run. FRICTION side: any command quoting a destructive git command trips it — commit messages, docs, greps. Worked around by `git commit -F <file>` so the command string stayed clean. **Open decision:** `git commit` can never discard working-tree state, but a prefix-based exemption would miss a compound `git commit … && <destructive>`. Options: match only outside quoted arguments, or exempt `-m`/`-F` argument text specifically. Do NOT weaken the destructive patterns themselves. |
 | 2026-07-30 | FRICTION | init.sh skills install | Upgrading this repo to 2.12.0 silently overwrote `/self-check`'s Project-specific Checks (2 real project checks — the fresh-install test and the hook smoke-test, i.e. exactly the checks that would have caught this release's bugs). `cp -r` per template dir, no merge. Recoverable from `.claude/.backup-<ts>/` but nothing announces it. → fix: preserve or merge that section on upgrade. |
 | 2026-07-30 | FRICTION | npx inside own repo | `npx cc-discipline@2.12.0 upgrade` inside the cc-discipline repo fails (`'cc-discipline' is not recognized…`) because npx resolves the name against the local package.json. It fails with a *message*, so a filtering grep over the output showed nothing and I briefly read it as "ran, nothing changed" — the version marker was the tell. → fix: use `node bin/cli.js upgrade` for dogfood; always verify `.claude/.cc-discipline-version` after an upgrade. |
+| 2026-07-30 | SAVE | cross-machine verification | Running the full functional check on the remote machines (not just reading the version marker) caught that **skills had never installed on macOS**. The version marker said 2.12.0 and hooks/rules were genuinely updated, so a marker-only check would have reported success on all 9 Mac projects. The `saves-` column was the only tell. → keep verifying behaviour, not version numbers. |

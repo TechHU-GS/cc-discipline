@@ -367,11 +367,31 @@ cp "$SCRIPT_DIR/templates/.claude/agents/investigator.md" .claude/agents/
 echo -e "${GREEN}Installing skills...${NC}"
 # Install every skill directory under templates/ — no per-skill enumeration,
 # so adding a new skill needs zero changes here.
+#
+# Copy into an EXPLICIT destination directory. Do not use `cp -r "$skill_dir"
+# .claude/skills/` here: the `*/` glob gives $skill_dir a trailing slash, and
+# GNU and BSD cp disagree about what that means. GNU copies the directory;
+# BSD (macOS) copies its *contents*, so every skill's SKILL.md landed on top of
+# the previous one at .claude/skills/SKILL.md and no skill was ever updated.
+# Shipped broken in v2.11.0 (the "directory-driven install" change) and fixed in
+# v2.12.1. Symptom on an affected machine: a stray .claude/skills/SKILL.md plus
+# skill dirs frozen at their first-install date. status/doctor could not catch
+# it because they glob `skills/*/` and a bare file is not a directory.
 for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
     [ -d "$skill_dir" ] || continue
-    cp -r "$skill_dir" .claude/skills/
-    echo "   ✓ /$(basename "$skill_dir")"
+    skill_name=$(basename "$skill_dir")
+    mkdir -p ".claude/skills/$skill_name"
+    cp -R "$skill_dir"* ".claude/skills/$skill_name/"
+    echo "   ✓ /$skill_name"
 done
+
+# Clean up the stray file left behind by the v2.11.0–v2.12.0 bug above. A bare
+# SKILL.md directly under skills/ is never a valid skill (skills live in
+# subdirectories), so this only ever removes that debris.
+if [ -f ".claude/skills/SKILL.md" ]; then
+    rm -f ".claude/skills/SKILL.md"
+    echo -e "   ${YELLOW}✓ removed stray .claude/skills/SKILL.md (v2.11.0 macOS install bug)${NC}"
+fi
 
 # ─── Handle CLAUDE.md ───
 if [ ! -f "CLAUDE.md" ]; then
