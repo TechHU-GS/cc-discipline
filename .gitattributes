@@ -8,3 +8,8 @@
 # stray carriage return after "node", which makes env fail with
 # "No such file or directory". Missed by the v2.10.2 CRLF pass; caught 2026-07-30.
 *.js text eol=lf
+# The framework's own state files have no extension, so the rules above never
+# matched them. A CRLF manifest puts a stray CR into every recorded digest and
+# breaks skill comparison exactly as a CRLF SKILL.md does.
+.cc-discipline-version text eol=lf
+.cc-discipline-skills.manifest text eol=lf

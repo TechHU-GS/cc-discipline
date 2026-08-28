@@ -470,6 +470,11 @@ _cc_hash() {
 # only overwrite a file that is byte-identical to what we would install anyway.
 _cc_hash_matches() {
     _f="$1"; _rec="$2"
+    # The manifest itself has no file extension, so .gitattributes rules keyed on
+    # *.sh/*.md/*.json never cover it and git may hand it back with CRLF. A
+    # trailing CR then rides along in the recorded digest and every comparison
+    # fails — the same bug this function exists to fix, one level up. Strip it.
+    _rec=${_rec%$'\r'}
     [ -n "$_rec" ] || return 1
     [ -f "$_f" ] || return 1
     case "$_rec" in
@@ -570,6 +575,7 @@ if [ -s "$OLD_MANIFEST" ]; then
             # user put inside the skill directory that we never installed and
             # therefore cannot account for.
             while read -r rel _; do
+                rel=${rel%$'\r'}
                 case "$rel" in "$old_skill"/*) ;; *) continue ;; esac
                 rm -f ".claude/skills/$rel"
             done < "$OLD_MANIFEST"
