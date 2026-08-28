@@ -84,7 +84,7 @@ your-project/
 │   │       └── mobile.md              #   移动端
 │   ├── hooks/
 │   │   ├── pre-edit-guard.sh          # 编辑前纪律检查
-│   │   ├── streak-breaker.sh          # 打地鼠检测（同文件编辑≥5次硬停止）
+│   │   ├── streak-breaker.sh          # 打地鼠检测（源码同文件编辑≥10次硬停止）
 │   │   └── post-error-remind.sh       # 错误后调试流程提醒
 │   ├── agents/
 │   │   ├── reviewer.md                # 代码审查员（独立 context）
@@ -127,8 +127,8 @@ Hooks 是在 Claude 执行操作前/后自动运行的 shell 脚本。**exit 2 �
 
 | Hook | 触发时机 | 作用 |
 |------|---------|------|
-| `streak-breaker.sh` | 编辑文件前 | 同文件编辑 ≥3 次警告，≥5 次硬停止 |
-| `pre-edit-guard.sh` | 编辑文件前 | 检查是否有未完成的调试流程 |
+| `streak-breaker.sh` | 编辑文件前 | 源码同文件编辑 ≥6 次警告、**≥10 次硬停止**；配置与文档为 10 / 16。用户确认为计划内改动后，两个阈值翻倍 |
+| `pre-edit-guard.sh` | 编辑文件前 | 检查 debug-log 中仍标 pending 的假设、超大 diff、新建脚本 —— **均为上下文提示，不阻断**（2026-07-30 从硬阻断降级） |
 | `post-error-remind.sh` | 执行命令后 | 检测到错误输出时提醒遵守调试纪律 |
 
 **实际效果演示：**
@@ -146,22 +146,23 @@ Claude: 正则不够，再加个长度检查。
 
 Claude: 把之前的测试搞挂了，调整一下。
         [编辑 src/auth.py — 修复测试兼容性]
-        ⚠️ 提示：auth.py 已被编辑 3 次。
+        ⚠️ 提示：auth.py 已被编辑 6 次。
         检查一下：这些修改是在推进目标，还是在修前面的修改？
 
 Claude: 换个思路重写验证层。
         [编辑 src/auth.py — 重写验证逻辑]
+        [… 中间还有三次编辑 …]
 
 Claude: 差不多了，再调一下...
         [编辑 src/auth.py — 被阻止]
 
         🛑 编辑检查点
-        文件 auth.py 本次会话已被编辑 5 次。
+        文件 auth.py 本次会话已被编辑 10 次。
         反思：
           1. 这些修改是在推进目标，还是在修之前的修改？
           2. 如果是后者：停下来，寻找根本原因。
 
-Claude: 你说得对。回顾这 5 次编辑，我一直在修症状。
+Claude: 你说得对。回顾这 10 次编辑，我一直在修症状。
         真正的问题是 User 模型的 validate() 在
         sanitization 之前被调用了。我应该从源头修。
 ```
@@ -170,7 +171,7 @@ Claude: 你说得对。回顾这 5 次编辑，我一直在修症状。
 
 ---
 
-**pre-edit-guard** — 阻止跳过诊断直接改代码：
+**pre-edit-guard** — 在跳过诊断直接改代码时提示（2026-07-30 起为提示，不阻断）：
 
 ```
 你：  "API 的 /users 接口返回 500 错误"
@@ -180,11 +181,12 @@ Claude: 我来排查。
         → 500 Internal Server Error
 
 Claude: 我觉得是数据库连接池的问题，改一下配置。
-        [编辑 src/db.py — 被阻止]
+        [编辑 src/db.py]
 
-        🛑 docs/debug-log.md 中有 2 个未验证的假设。
-        请先完成调试流程（验证或排除假设），
-        再编辑源代码。
+        DEBUG-LOG 提示：docs/debug-log.md 中有 2 个假设
+        仍标记为 pending。如果这次编辑就是其中某条的修复，
+        请先更新它的状态，让日志保持真实；
+        如果是无关的工作，继续即可。
 
 Claude: 对，我还没验证我的假设。先看看错误日志。
         [执行: tail -50 logs/error.log]
@@ -262,8 +264,9 @@ EOF
 
 编辑 `.claude/hooks/streak-breaker.sh`：
 ```bash
-WARN_THRESHOLD=3    # Warning after N edits to same file
-STOP_THRESHOLD=5    # Hard block after N edits to same file
+WARN_THRESHOLD=6     # 同一源码文件编辑 N 次后警告
+STOP_THRESHOLD=10    # 同一源码文件编辑 N 次后硬停止
+# 配置与文档文件为 10/16；用户确认为计划内改动后两者翻倍
 ```
 
 ### 添加新的子代理

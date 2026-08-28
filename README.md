@@ -17,9 +17,11 @@ Markdown rules help, but Claude can ignore them. **Hooks can't be ignored** — 
 
 ### Hooks (the enforcer)
 
-Three shell scripts that run automatically before/after Claude's actions:
+Seven shell scripts run automatically before and after Claude's actions. Two of them can stop an operation outright — `git-guard.sh` on destructive git commands, and `streak-breaker.sh` once a file passes its edit ceiling. The rest inject context rather than block. The three below are the ones worth seeing in action:
 
-**`streak-breaker.sh`** — Tracks per-file edit counts. Warns at 3, **hard-blocks at 5**. Forces Claude to stop and find the root cause instead of endlessly patching.
+**`streak-breaker.sh`** — Tracks per-file edit counts. Source files warn at 6 and **hard-block at 10**; config and docs warn at 10 and block at 16. Confirming that a run of edits is planned doubles both thresholds for that file. Forces Claude to stop and find the root cause instead of endlessly patching.
+
+> Raised from 3/5 on 2026-07-30. Newer models complete multi-file features end to end rather than one pass per file, so five edits to one source file is now common in legitimate work — the old thresholds fired on progress, not on circling.
 
 Here's what it looks like in practice:
 
@@ -34,25 +36,26 @@ Claude: The regex wasn't enough, let me also add length check.
 
 Claude: That broke the existing tests, let me adjust.
         [Edit src/auth.py — fix test compatibility]
-        ⚠️ EDIT NOTE: File src/auth.py has been edited 3 times.
+        ⚠️ EDIT NOTE: File src/auth.py has been edited 6 times.
         Quick check: are these edits building toward a goal,
         or fixing previous edits?
 
 Claude: Let me try a different approach to the validation.
         [Edit src/auth.py — rewrite validation layer]
+        [… three more edits …]
 
 Claude: Almost there, one more adjustment...
         [Edit src/auth.py — blocked]
 
         🛑 EDIT CHECKPOINT
-        File src/auth.py has been edited 5 times this session.
+        File src/auth.py has been edited 10 times this session.
         Reflect:
           1. Are these edits progressing toward a goal,
              or fixing previous edits?
           2. If fixing previous edits: pause and look
              for the root cause.
 
-Claude: You're right. Looking at all 5 edits, I was patching
+Claude: You're right. Looking at all 10 edits, I was patching
         symptoms. The real issue is that the User model's
         validate() method is called before sanitization.
         Let me fix it at the source instead.
@@ -62,7 +65,9 @@ Without the hook, Claude would keep editing `auth.py` indefinitely — each fix 
 
 ---
 
-**`pre-edit-guard.sh`** — Checks `docs/debug-log.md` for unverified hypotheses. If you're debugging and haven't finished the process, it blocks source code edits until you do.
+**`pre-edit-guard.sh`** — Before a source edit, checks `docs/debug-log.md` for hypotheses still marked pending, flags unusually large diffs, and reminds you to register newly created scripts. These are context notes, not blocks.
+
+> Downgraded from a hard block on 2026-07-30. Combined with the debugging rules it had become a trap: write three hypotheses into the log as the rules ask, and you were then barred from editing source until three were confirmed — including for unrelated planned work. The hypothesis discipline stays in the rules; only the enforcement was relaxed.
 
 ```
 You:   "The API is returning 500 errors on /users endpoint"
@@ -73,11 +78,12 @@ Claude: Let me investigate.
 
 Claude: I think it's a database connection issue. Let me fix
         the connection pool config.
-        [Edit src/db.py — blocked]
+        [Edit src/db.py]
 
-        🛑 docs/debug-log.md has 2 unverified hypotheses.
-        Please complete the debugging process (verify or
-        eliminate hypotheses) before editing source code.
+        DEBUG-LOG NOTE: docs/debug-log.md has 2 hypotheses
+        still marked pending. If this edit is the fix for one
+        of them, update its status first so the log stays
+        truthful. If this edit is unrelated work, carry on.
 
 Claude: Right, I haven't verified my hypothesis yet.
         Let me check the actual error logs first.
@@ -188,8 +194,9 @@ CLAUDE.md                     # Your project info (you fill this in)
 
 ```bash
 # In .claude/hooks/streak-breaker.sh
-WARN_THRESHOLD=3    # Warn after N edits to same file
-STOP_THRESHOLD=5    # Hard block after N edits
+WARN_THRESHOLD=6     # Warn after N edits to same source file
+STOP_THRESHOLD=10    # Hard block after N edits
+# Config and doc files use 10/16; a confirmed run doubles both
 ```
 
 **Add your own rules:**
