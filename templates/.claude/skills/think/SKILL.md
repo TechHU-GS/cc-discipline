@@ -93,7 +93,7 @@ If self-review reveals issues, revise your proposals before presenting. Don't sh
 
 Do not:
 - Start coding "while waiting"
-- Create files or scaffolding
+- Create files or scaffolding — **except** writing the plan itself to disk, which is not implementation. `/coplan` does exactly that and is designed to stack here.
 - Run exploratory commands beyond what's needed for Step 0-3
 - Say "I'll go ahead and start with Approach A" — that's the user's call
 

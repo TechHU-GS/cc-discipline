@@ -395,6 +395,7 @@ SKILLS_MANIFEST=".claude/.cc-discipline-skills.manifest"
 NEW_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.tmp")
 PRESERVED_SKILLS=""
 RETIRED_SKILLS=""
+RETIRED_PARTIAL=""
 KEPT_RETIRED=""
 # Snapshot the manifest before the install loop overwrites it. The retirement
 # pass further down needs the OLD record to tell "we installed this" apart from
@@ -402,12 +403,43 @@ KEPT_RETIRED=""
 OLD_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.old")
 [ -f "$SKILLS_MANIFEST" ] && cp "$SKILLS_MANIFEST" "$OLD_MANIFEST"
 
+# Emit "<algo>:<digest>", never a bare digest. The fallback chain below resolves
+# differently depending on what is installed, so a manifest that stores only the
+# digest silently mis-compares the moment tool availability changes — the same
+# class of environment drift that made the jq-only reads fail. When that happens
+# every recorded hash mismatches, every retired skill looks user-modified, and
+# the retirement pass does nothing. (fixed 2026-08-28, before 2.13.0 shipped.)
+# sha256sum and `shasum -a 256` produce identical digests, so both record sha256.
 _cc_hash() {
-    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
-    elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
-    elif command -v md5sum >/dev/null 2>&1; then md5sum "$1" | cut -d' ' -f1
-    elif command -v md5 >/dev/null 2>&1; then md5 -q "$1"
-    else cksum "$1" | cut -d' ' -f1; fi
+    if command -v sha256sum >/dev/null 2>&1; then echo "sha256:$(sha256sum "$1" | cut -d' ' -f1)"
+    elif command -v shasum >/dev/null 2>&1; then echo "sha256:$(shasum -a 256 "$1" | cut -d' ' -f1)"
+    elif command -v md5sum >/dev/null 2>&1; then echo "md5:$(md5sum "$1" | cut -d' ' -f1)"
+    elif command -v md5 >/dev/null 2>&1; then echo "md5:$(md5 -q "$1")"
+    else echo "cksum:$(cksum "$1" | cut -d' ' -f1)"; fi
+}
+
+# True when manifest entry $2 still describes the current content of file $1.
+# Handles the "<algo>:<digest>" form written from 2.13.0 and the bare digest
+# written by 2.12.2/2.12.3: for a legacy entry the algorithm is unknown, so try
+# each available one and accept any match rather than calling the file modified.
+_cc_hash_matches() {
+    _f="$1"; _rec="$2"
+    [ -n "$_rec" ] || return 1
+    case "$_rec" in
+        *:*) [ "$(_cc_hash "$_f")" = "$_rec" ] && return 0; return 1 ;;
+    esac
+    for _algo in sha256sum shasum md5sum md5 cksum; do
+        command -v "$_algo" >/dev/null 2>&1 || continue
+        case "$_algo" in
+            sha256sum) _got=$(sha256sum "$_f" | cut -d' ' -f1) ;;
+            shasum)    _got=$(shasum -a 256 "$_f" | cut -d' ' -f1) ;;
+            md5sum)    _got=$(md5sum "$_f" | cut -d' ' -f1) ;;
+            md5)       _got=$(md5 -q "$_f") ;;
+            cksum)     _got=$(cksum "$_f" | cut -d' ' -f1) ;;
+        esac
+        [ "$_got" = "$_rec" ] && return 0
+    done
+    return 1
 }
 
 for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
@@ -426,11 +458,10 @@ for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
         if [ ! -f "$dst" ]; then
             cp "$src" "$dst"                       # new file — nothing to protect
         else
-            disk_hash=$(_cc_hash "$dst")
             recorded=$(grep "^$rel " "$SKILLS_MANIFEST" 2>/dev/null | head -1 | cut -d' ' -f2)
-            if [ "$disk_hash" = "$tpl_hash" ]; then
+            if _cc_hash_matches "$dst" "$tpl_hash"; then
                 :                                  # already current
-            elif [ -n "$recorded" ] && [ "$disk_hash" = "$recorded" ]; then
+            elif _cc_hash_matches "$dst" "$recorded"; then
                 cp "$src" "$dst"                   # pristine older version — safe
             elif [ -z "$recorded" ]; then
                 # No manifest yet (first run on an existing install) and the file
@@ -471,13 +502,28 @@ if [ -s "$OLD_MANIFEST" ]; then
         while read -r rel rec_hash; do
             case "$rel" in "$old_skill"/*) ;; *) continue ;; esac
             [ -f ".claude/skills/$rel" ] || continue
-            [ "$(_cc_hash ".claude/skills/$rel")" = "$rec_hash" ] || skill_modified=true
+            _cc_hash_matches ".claude/skills/$rel" "$rec_hash" || skill_modified=true
         done < "$OLD_MANIFEST"
         if [ "$skill_modified" = true ]; then
             KEPT_RETIRED="$KEPT_RETIRED $old_skill"
+            # Carry the old entries into the new manifest. Without this the skill
+            # never appears in a manifest again, so a later upgrade cannot tell
+            # our copy from the user's and it is frozen in place permanently.
+            grep "^$old_skill/" "$OLD_MANIFEST" >> "$SKILLS_MANIFEST" 2>/dev/null
         else
-            rm -rf ".claude/skills/$old_skill"
-            RETIRED_SKILLS="$RETIRED_SKILLS $old_skill"
+            # Delete only the files the manifest recorded, then the directory if
+            # that leaves it empty. A blanket rm -rf would also destroy files a
+            # user put inside the skill directory that we never installed and
+            # therefore cannot account for.
+            while read -r rel _; do
+                case "$rel" in "$old_skill"/*) ;; *) continue ;; esac
+                rm -f ".claude/skills/$rel"
+            done < "$OLD_MANIFEST"
+            if rmdir ".claude/skills/$old_skill" 2>/dev/null; then
+                RETIRED_SKILLS="$RETIRED_SKILLS $old_skill"
+            else
+                RETIRED_PARTIAL="$RETIRED_PARTIAL $old_skill"
+            fi
         fi
     done
 fi
@@ -485,6 +531,9 @@ rm -f "$OLD_MANIFEST" 2>/dev/null
 
 if [ -n "$RETIRED_SKILLS" ]; then
     echo -e "   ${YELLOW}Retired upstream, removed:${RETIRED_SKILLS}${NC}"
+fi
+if [ -n "$RETIRED_PARTIAL" ]; then
+    echo -e "   ${YELLOW}Retired upstream; our files removed but directory kept (it holds files we did not install):${RETIRED_PARTIAL}${NC}"
 fi
 if [ -n "$KEPT_RETIRED" ]; then
     echo -e "   ${YELLOW}Retired upstream but kept — you modified them:${KEPT_RETIRED}${NC}"

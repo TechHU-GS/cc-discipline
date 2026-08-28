@@ -90,25 +90,14 @@ if [ "$DIFF_LINES" -gt 200 ]; then
     exit 0
 fi
 
-# ─── New tool/script detection ───
-# When creating a script file via Write, remind to register in CLAUDE.md
-# jq-or-sed: the previous jq-only line left TOOL_NAME empty on Windows Git Bash,
-# so this detection never fired there. (fixed 2026-07-30)
-if command -v jq &>/dev/null; then
-    TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
-else
-    TOOL_NAME=$(echo "$INPUT" | sed -n -E 's/.*"tool_name"[[:space:]]*:[[:space:]]*"([^"]*)".*/\1/p' | head -1)
-fi
-if [ "$TOOL_NAME" = "Write" ] && echo "$BASENAME" | grep -qiE "\.(sh|py|js|ts|rb|pl)$"; then
-    # Check if file already exists (new file = tool creation)
-    FULL_PATH="$FILE_PATH"
-    if [ ! -f "$FULL_PATH" ]; then
-        cat <<JSONEOF
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"NEW SCRIPT DETECTED: You are creating $BASENAME. If this is a reusable tool/helper, register it in CLAUDE.md under 'Project Tools' now (path, purpose, usage, date) — capturing it while context is fresh saves time later."}}
-JSONEOF
-        exit 0
-    fi
-fi
+# The new-script registration reminder was removed 2026-08-28. It fired 2,170
+# times in four weeks across two machines (~50 tokens each), almost entirely on
+# one-off transform scripts nobody would ever register. The measured correlation
+# with a growing Project Tools section was confounded: /commit carries the same
+# instruction, and a "does the heading exist" gate was disproven because
+# templates/CLAUDE.md ships that heading so every generated project has it.
+# Removing the branch also drops the TOOL_NAME extraction, which nothing else
+# used, cutting two subprocess calls from the hottest hook.
 
 # Normal source edit: stay silent (exit 0, no output).
 # The "list >=3 causes before a bug fix" guidance already lives in the
