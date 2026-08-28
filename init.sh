@@ -403,41 +403,95 @@ KEPT_RETIRED=""
 OLD_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.old")
 [ -f "$SKILLS_MANIFEST" ] && cp "$SKILLS_MANIFEST" "$OLD_MANIFEST"
 
-# Emit "<algo>:<digest>", never a bare digest. The fallback chain below resolves
-# differently depending on what is installed, so a manifest that stores only the
-# digest silently mis-compares the moment tool availability changes — the same
-# class of environment drift that made the jq-only reads fail. When that happens
-# every recorded hash mismatches, every retired skill looks user-modified, and
-# the retirement pass does nothing. (fixed 2026-08-28, before 2.13.0 shipped.)
-# sha256sum and `shasum -a 256` produce identical digests, so both record sha256.
-_cc_hash() {
-    if command -v sha256sum >/dev/null 2>&1; then echo "sha256:$(sha256sum "$1" | cut -d' ' -f1)"
-    elif command -v shasum >/dev/null 2>&1; then echo "sha256:$(shasum -a 256 "$1" | cut -d' ' -f1)"
-    elif command -v md5sum >/dev/null 2>&1; then echo "md5:$(md5sum "$1" | cut -d' ' -f1)"
-    elif command -v md5 >/dev/null 2>&1; then echo "md5:$(md5 -q "$1")"
-    else echo "cksum:$(cksum "$1" | cut -d' ' -f1)"; fi
+# ─── Skill content hashing ───
+# Two properties matter here, and both were learned the hard way.
+#
+# 1. Record WHICH algorithm produced a digest. The fallback below resolves
+#    differently depending on what is installed, so a manifest holding a bare
+#    digest silently mis-compares the moment tool availability changes — every
+#    hash mismatches, every retired skill looks user-modified, and the
+#    retirement pass does nothing. (fixed 2026-08-28, before 2.13.0 shipped.)
+#
+# 2. Hash line-ending-NORMALIZED content, not raw bytes. Projects that commit
+#    .claude/ and run with core.autocrlf=true and no .gitattributes get their
+#    SKILL.md rewritten to CRLF by git on checkout. Byte-exact comparison then
+#    reports every skill as modified, with the same two consequences as above
+#    plus a .new file dropped beside every skill on every upgrade. Measured on
+#    one install: the file differed from its manifest entry by exactly 44 bytes
+#    across 44 lines, and matched perfectly once normalized. (fixed 2026-08-28)
+#
+# sha256sum and `shasum -a 256` produce identical digests, so both label sha256.
+
+_cc_digest_with() {   # $1=tool  $2=file  $3=norm|raw  ->  bare digest
+    if [ "$3" = "norm" ]; then
+        case "$1" in
+            sha256sum) sed 's/\r$//' "$2" | sha256sum | cut -d' ' -f1 ;;
+            shasum)    sed 's/\r$//' "$2" | shasum -a 256 | cut -d' ' -f1 ;;
+            md5sum)    sed 's/\r$//' "$2" | md5sum | cut -d' ' -f1 ;;
+            md5)       sed 's/\r$//' "$2" | md5 -q ;;
+            cksum)     sed 's/\r$//' "$2" | cksum | cut -d' ' -f1 ;;
+        esac
+    else
+        case "$1" in
+            sha256sum) sha256sum "$2" | cut -d' ' -f1 ;;
+            shasum)    shasum -a 256 "$2" | cut -d' ' -f1 ;;
+            md5sum)    md5sum "$2" | cut -d' ' -f1 ;;
+            md5)       md5 -q "$2" ;;
+            cksum)     cksum "$2" | cut -d' ' -f1 ;;
+        esac
+    fi
 }
 
-# True when manifest entry $2 still describes the current content of file $1.
-# Handles the "<algo>:<digest>" form written from 2.13.0 and the bare digest
-# written by 2.12.2/2.12.3: for a legacy entry the algorithm is unknown, so try
-# each available one and accept any match rather than calling the file modified.
+_cc_algo() {
+    for _a in sha256sum shasum md5sum md5 cksum; do
+        command -v "$_a" >/dev/null 2>&1 && { echo "$_a"; return; }
+    done
+    echo cksum
+}
+
+_cc_label() {
+    case "$1" in sha256sum|shasum) echo sha256 ;; md5sum|md5) echo md5 ;; *) echo cksum ;; esac
+}
+
+# What gets written into the manifest: normalized, algorithm-labelled.
+_cc_hash() {
+    _a=$(_cc_algo)
+    echo "$(_cc_label "$_a"):$(_cc_digest_with "$_a" "$1" norm)"
+}
+
+# True when manifest entry $2 still describes file $1. Accepts, in order of how
+# the entry was most likely written:
+#   - "<algo>:<digest>" from 2.13.1+, normalized
+#   - "<algo>:<digest>" from 2.13.0, byte-exact
+#   - a bare digest from 2.12.2/2.12.3, algorithm and normalization both unknown
+# Anything that matches under any of those readings counts as pristine. Being
+# permissive here is the safe direction: a false "modified" freezes a skill in
+# place forever and buries the user in .new files, while a false "pristine" can
+# only overwrite a file that is byte-identical to what we would install anyway.
 _cc_hash_matches() {
     _f="$1"; _rec="$2"
     [ -n "$_rec" ] || return 1
+    [ -f "$_f" ] || return 1
     case "$_rec" in
-        *:*) [ "$(_cc_hash "$_f")" = "$_rec" ] && return 0; return 1 ;;
+        *:*)
+            _rl=${_rec%%:*}; _rd=${_rec#*:}
+            case "$_rl" in
+                sha256) _cands="sha256sum shasum" ;;
+                md5)    _cands="md5sum md5" ;;
+                *)      _cands="cksum" ;;
+            esac
+            for _al in $_cands; do
+                command -v "$_al" >/dev/null 2>&1 || continue
+                [ "$(_cc_digest_with "$_al" "$_f" norm)" = "$_rd" ] && return 0
+                [ "$(_cc_digest_with "$_al" "$_f" raw)" = "$_rd" ] && return 0
+            done
+            return 1
+            ;;
     esac
-    for _algo in sha256sum shasum md5sum md5 cksum; do
-        command -v "$_algo" >/dev/null 2>&1 || continue
-        case "$_algo" in
-            sha256sum) _got=$(sha256sum "$_f" | cut -d' ' -f1) ;;
-            shasum)    _got=$(shasum -a 256 "$_f" | cut -d' ' -f1) ;;
-            md5sum)    _got=$(md5sum "$_f" | cut -d' ' -f1) ;;
-            md5)       _got=$(md5 -q "$_f") ;;
-            cksum)     _got=$(cksum "$_f" | cut -d' ' -f1) ;;
-        esac
-        [ "$_got" = "$_rec" ] && return 0
+    for _al in sha256sum shasum md5sum md5 cksum; do
+        command -v "$_al" >/dev/null 2>&1 || continue
+        [ "$(_cc_digest_with "$_al" "$_f" norm)" = "$_rec" ] && return 0
+        [ "$(_cc_digest_with "$_al" "$_f" raw)" = "$_rec" ] && return 0
     done
     return 1
 }
