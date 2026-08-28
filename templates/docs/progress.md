@@ -76,7 +76,7 @@
 ## Rule Ledger
 
 <!--
-Appended by /retro. Two columns of evidence about the discipline rules themselves:
+Appended by /self-check §7. Two columns of evidence about the discipline rules themselves:
 
 - SAVE  — a rule or hook changed the outcome: caught a real mistake, blocked a
           real loss, stopped a wrong turn already in motion.

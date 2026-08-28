@@ -394,6 +394,13 @@ echo -e "${GREEN}Installing skills...${NC}"
 SKILLS_MANIFEST=".claude/.cc-discipline-skills.manifest"
 NEW_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.tmp")
 PRESERVED_SKILLS=""
+RETIRED_SKILLS=""
+KEPT_RETIRED=""
+# Snapshot the manifest before the install loop overwrites it. The retirement
+# pass further down needs the OLD record to tell "we installed this" apart from
+# "the user wrote it themselves".
+OLD_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.old")
+[ -f "$SKILLS_MANIFEST" ] && cp "$SKILLS_MANIFEST" "$OLD_MANIFEST"
 
 _cc_hash() {
     if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
@@ -448,6 +455,41 @@ for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
 done
 
 [ -f "$NEW_MANIFEST" ] && mv "$NEW_MANIFEST" "$SKILLS_MANIFEST"
+
+# ─── Retire skills that upstream removed ───
+# The install loop only ever copies, so a skill deleted from templates/ (as
+# /finish and /retro were in v2.13.0) would otherwise sit in every existing
+# install forever. Same conffile rule as the overwrite guard above: delete only
+# what we installed and the user never touched. Anything modified is kept and
+# reported. An install with no prior manifest is left alone entirely — without
+# the old hashes there is no way to tell our copy from the user's own work.
+if [ -s "$OLD_MANIFEST" ]; then
+    for old_skill in $(cut -d' ' -f1 "$OLD_MANIFEST" | cut -d'/' -f1 | sort -u); do
+        [ -d "$SCRIPT_DIR/templates/.claude/skills/$old_skill" ] && continue
+        [ -d ".claude/skills/$old_skill" ] || continue
+        skill_modified=false
+        while read -r rel rec_hash; do
+            case "$rel" in "$old_skill"/*) ;; *) continue ;; esac
+            [ -f ".claude/skills/$rel" ] || continue
+            [ "$(_cc_hash ".claude/skills/$rel")" = "$rec_hash" ] || skill_modified=true
+        done < "$OLD_MANIFEST"
+        if [ "$skill_modified" = true ]; then
+            KEPT_RETIRED="$KEPT_RETIRED $old_skill"
+        else
+            rm -rf ".claude/skills/$old_skill"
+            RETIRED_SKILLS="$RETIRED_SKILLS $old_skill"
+        fi
+    done
+fi
+rm -f "$OLD_MANIFEST" 2>/dev/null
+
+if [ -n "$RETIRED_SKILLS" ]; then
+    echo -e "   ${YELLOW}Retired upstream, removed:${RETIRED_SKILLS}${NC}"
+fi
+if [ -n "$KEPT_RETIRED" ]; then
+    echo -e "   ${YELLOW}Retired upstream but kept — you modified them:${KEPT_RETIRED}${NC}"
+    echo -e "   ${YELLOW}Delete by hand once you no longer need them.${NC}"
+fi
 
 if [ -n "$PRESERVED_SKILLS" ]; then
     echo -e "   ${YELLOW}Locally modified skills were not overwritten:${PRESERVED_SKILLS}${NC}"

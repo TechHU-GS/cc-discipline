@@ -30,7 +30,7 @@
 │   ├── .claude/
 │   │   ├── hooks/       ← 7 shell scripts (pre-edit-guard, streak-breaker, etc.)
 │   │   ├── rules/       ← 8 core rules (00-07) + stacks/ (5 tech stacks)
-│   │   ├── skills/      ← 8 skills (commit, self-check, evaluate, think, retro, summary, investigate, finish)
+│   │   ├── skills/      ← 6 skills (commit, self-check, evaluate, think, summary, investigate)
 │   │   ├── agents/      ← reviewer + investigator subagents
 │   │   └── settings.json← Hook registration
 │   ├── CLAUDE.md        ← Project CLAUDE.md template

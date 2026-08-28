@@ -89,9 +89,18 @@ Keep this list curated — remove tools that are obsolete.
 - `bash tests/git-guard-matrix.sh` — **run after ANY change to git-guard matching.** 25 cases; a miss there loses uncommitted work and is unrecoverable, so this is the one check that must never be skipped. Also run it against the installed copy: `bash tests/git-guard-matrix.sh .claude/hooks/git-guard.sh`.
 - `grep -n 'jq -r' templates/.claude/hooks/*.sh` — every hit must sit inside a `command -v jq` branch that has an `else`. Five jq-only reads shipped broken before this was checked; git-guard's made the whole guard dead code on Windows.
 
-## 7. What's working well?
+## 7. Did the rules change anything this time?
 
-Before reporting issues, note one thing that's going well — a good approach, a clean fix, effective tool use, or strong alignment with the user's direction. Recognizing what works reinforces it.
+Most checks have neither — **"none this time" is the normal answer and it is data.** Never manufacture one.
+
+- **Save** — a rule or hook *changed the outcome*: caught a real mistake, blocked a real loss, stopped a wrong turn already in motion. "The rules kept me disciplined" is not a save; "git-guard blocked a hard reset with 40 min of uncommitted work in the tree" is.
+- **Friction** — a rule or hook cost time for no benefit. Only log it with a concrete `→ fix:` (raise a threshold, exempt a path, reword a check). "X was annoying" is not actionable.
+
+If either is present, append one dated line each to a `## Rule Ledger` table in `docs/progress.md` (create the section at the end if it isn't there), then note it in the status line. **Do this automatically — recording an observation is not a change that needs sign-off.**
+
+Saves get logged because they are invisible: a rule that works suppresses the very failure it was written for, so only its cost surfaces on its own. Judge on cost alone and every load-bearing rule eventually looks like overhead.
+
+If there was no save, note one thing that went well instead — recognizing what works reinforces it.
 
 ## 8. Status report
 
@@ -105,6 +114,7 @@ On track: yes/no/drifted
 Progressing: yes/circling
 Progress recorded: yes/updated now/no
 Scaffolding: [used/skipped/n/a]
+Ledger: [save / friction appended, or "none"]
 Going well: [one thing]
 Issues found: [list, or "none"]
 ```

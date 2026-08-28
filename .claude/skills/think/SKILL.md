@@ -112,6 +112,5 @@ Carry these forward. If scope changes during implementation, pause and re-align 
 The user may steer what happens after alignment by appending a directive to the invocation:
 
 - **`/think and plan`** — after alignment, produce the plan (in plan mode, present it for approval via ExitPlanMode).
-- **`/think and finish`** (or `and goal`) — after the user approves the approach, transition into **/finish**: drive to completion with its quality bar (solid, comprehensive, fully tested). Do NOT start before approval — 05-phase-discipline still applies; "and finish" declares the post-approval execution stance, it does not bypass the gate.
 
 If no directive was appended, stop and wait as usual (Step 5).
