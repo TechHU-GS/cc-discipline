@@ -14,7 +14,7 @@
   1. **npm token rotation** — pasted in chat 2026-06-05, still not rotated. Highest severity item and the only one the user must do personally: it can publish arbitrary code under this package name, which 22 projects pull via `npx cc-discipline@latest`.
   2. **Hook latency**: the three hooks firing on every edit total **1,267 ms** on Windows/Git Bash against the `<100ms` claimed in CLAUDE.md:12. Root cause is 65 subprocess calls at 20-30 ms each. Deliberately deferred — it refactors the parsing core of the only enforcement layer and needs its own pass with before/after numbers on both platforms.
   3. **Pre-2.12.2 installs never retire skills.** Those upgraded straight from `<2.12.2` to 2.13.x have no manifest, so the conservative "no manifest, remove nothing" rule leaves `/finish` and `/retro` in place forever (seen on `HUB_Rev1_FW`). Fixing needs a shipped list of historical digests for the retired skills — a one-time special case, not yet decided.
-  4. **No `AGENTS.md` anywhere under `E:\Code`.** Codex reads `AGENTS.md` (30+ tools do; Claude Code is the exception and reads `CLAUDE.md`), so it cannot see any of the discipline in `.claude/rules/`. Today's two Codex runs stayed read-only only because the prompt said so explicitly — `rescue` defaults to `--write`. Proposed shape: put the hard boundaries in `AGENTS.md` and import it from `CLAUDE.md` with `@AGENTS.md`; do not copy the behavioural rules across.
+  4. **`AGENTS.md`: decided against** for these repos (2026-08-30, see the milestone at the end). It sits downstream of the sandbox gate and cannot affect write permission; the criterion is whether Codex actually modifies files, and today it only reviews. Revisit the day Codex is given `--write` to implement something.
   5. Frozen rule bucket (`00` §6, `01-debugging`, `05-phase`, `07` §4a) still undecided — rules leave no mechanical trace, so the transcript sweep that settled the hooks cannot settle these.
 - **Published**: v2.10.1 … v2.12.3, v2.13.0 (retired /finish + /retro, added /coplan), v2.13.1 (manifest line-ending normalization), v2.13.2 (manifest file itself protected)
 
@@ -392,4 +392,26 @@ Reproduced before fixing: a manifest line written with CRLF made a byte-identica
 
 **Design decisions**: fixed path, no optional argument — one plan at a time, and `git log -p docs/current-plan.md` keeps every earlier version, so overwriting loses nothing and the directory never fills with dated files. Independent of `/think` but designed to stack with it: `/think /coplan <task>` produces the approaches and puts them on disk with the choice **still open**, because the review is meant to inform the decision rather than ratify one. That required a carve-out in `/think` Step 5, which otherwise forbids creating files — writing the plan down is not implementation.
 
-**Two Codex engines, distinguished** (recorded in the techhu-devices memory file, not here): `/codex:review` looks for defects in a diff; `/codex:rescue` is adversarial and questions the approach itself. A plan wants `rescue`. **`rescue` defaults to `--write`** — both runs this session stayed read-only only because the prompt said `只评审方案，不要修改任何文件` explicitly. There is no structural constraint enforcing that, which is the strongest argument for an `AGENTS.md` holding the hard boundaries: Codex reads `AGENTS.md`, never `CLAUDE.md`, so today it sees none of `.claude/rules/`.
+**Two Codex engines, distinguished** (recorded in the techhu-devices memory file, not here): `/codex:review` looks for defects in a diff; `/codex:rescue` is adversarial and questions the approach itself. A plan wants `rescue`. `rescue` does default to a write-capable run, but `agents/codex-rescue.md:34` conditions that default: it adds `--write` *"unless the user explicitly asks for read-only behavior **or only wants review, diagnosis, or research without edits**"*. Saying `只评审方案` hits that documented branch rather than getting lucky. `review` cannot write at all — `codex-companion.mjs:414` hardcodes `sandbox: "read-only"`.
+
+### 2026-08-30 — AGENTS.md: decided against for Claude-Code-led repos
+
+An earlier note in this file argued that `AGENTS.md` was the right place for hard boundaries, on the grounds that Codex reads it and never reads `CLAUDE.md`. **That argument is wrong and has been removed above.** It fails on ordering:
+
+```
+Claude decides whether to pass --write
+   ↓
+sandbox: request.write ? "workspace-write" : "read-only"   <- codex-companion.mjs:491
+   ↓
+Codex process starts
+   ↓
+Codex reads AGENTS.md                                      <- gate already closed
+```
+
+`AGENTS.md` is read **downstream of the only real gate**, so it cannot influence the sandbox its own process runs under. The write decision belongs to `agents/codex-rescue.md`, on the Claude side, and that file already handles it. Worse, even if Codex did obey an `AGENTS.md` line saying "do not modify files", that is one more *advisory* layer — precisely the layer this project's entire thesis distrusts for anything that can lose work.
+
+The sandbox is also **binary and has no path granularity** (`:491`), so "let Codex edit only `docs/current-plan.md`" is not an expressible permission. It decomposes into "open write on the whole workspace, then ask nicely". (Do not confuse this with the `--scope` flag at `:80` — that selects the *diff range* for `review`/`adversarial-review`, not a write scope.)
+
+**Criterion for whether a repo needs one: does Codex actually modify files here?** Review-only, as in every current repo → no. `AGENTS.md` is a productivity document (build and test commands, conventions, directories to leave alone), not a safety one; it earns its place the day Codex is given `--write` to implement something, and not before. Writing it now would mean guessing at contents that are only knowable then.
+
+**Related, on plan review**: letting Codex rewrite `docs/current-plan.md` and reading the diff was considered and rejected. It saves the cheapest step (applying prose feedback with a few edits) and spends the most expensive one — a diff reads as a verdict and quietly erodes the "opinions are input, not judgment; verify each one first" discipline. It also discards the evidence, which is the actual deliverable of a plan review, and `git diff` would not show any untracked file Codex created. The cheap fix for review latency is prompt shape, not write access: ask Codex to answer **keyed to the numbered `Assumptions to verify` entries**, each as `number · holds / does not hold / cannot tell · evidence (file:line)`. That section was designed as a review anchor; the prompt just never used it.
