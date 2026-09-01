@@ -16,3 +16,7 @@
 # .gitignore has no extension either, so the rules above never matched it. This
 # project has been bitten by CRLF four times; do not leave another file uncovered.
 .gitignore text eol=lf
+# And the rules file itself was not covered by its own rules. A CRLF
+# .gitattributes risks every rule above parsing as "eol=lf<CR>" and silently
+# doing nothing -- the same shape as the v2.13.2 manifest bug one level up.
+.gitattributes text eol=lf
