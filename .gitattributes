@@ -13,3 +13,6 @@
 # breaks skill comparison exactly as a CRLF SKILL.md does.
 .cc-discipline-version text eol=lf
 .cc-discipline-skills.manifest text eol=lf
+# .gitignore has no extension either, so the rules above never matched it. This
+# project has been bitten by CRLF four times; do not leave another file uncovered.
+.gitignore text eol=lf

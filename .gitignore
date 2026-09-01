@@ -10,3 +10,8 @@
 # Transient: the template offered when a locally-modified skill is preserved.
 # Resolve it (diff, then keep yours or mv it into place) rather than committing it.
 .claude/skills/*/SKILL.md.new
+# /coplan's scratch file. Deliberately untracked: a tracked file that is always
+# modified becomes a standing passenger and rides into unrelated commits — that
+# is how temporary debug instrumentation once reached main. The decision record
+# lives in docs/progress.md and commit messages, not in this draft's history.
+docs/current-plan.md
