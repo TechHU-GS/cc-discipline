@@ -6,8 +6,8 @@
 
 ## Current Status
 
-- **Committed, NOT yet published**: **v2.13.6** — the force-push rule in `git-guard` had a real miss, not only false positives. See the second 2026-09-02 entry.
-- **Shipped**: **v2.13.5**, published and rolled out to all 23 installs (2026-09-02).
+- **Shipped**: **v2.13.6**, published and rolled out to all 23 installs (2026-09-02), verified functionally rather than by file content — see below.
+- **Previous**: v2.13.5, same day, same 23 installs.
 - **Published**: **v2.13.2**, rolled out to all 22 installs. Three releases in one pass — 2.13.0 retired `/finish` and `/retro` and added `/coplan`; 2.13.1 and 2.13.2 fixed two CRLF defects that the rollout itself exposed.
 - **Fleet: 22 installs on 3 machines, all v2.13.2** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (5), techhu-7940 `techhu_dev@100.64.0.18` (7). Verified by scanning for `.claude/hooks/streak-breaker.sh`, **not** by the version file: three installs (`phenology-twin`, `soil-twin`, `vini-twin`) predate 2.0.0, carry no version file, and had been invisible to every previous rollout. The hardcoded seven-project list used since July was stale.
 - **Last updated**: 2026-08-30
@@ -545,3 +545,7 @@ The old rule was a single line: a `push` test allowing any distance to `(-f|--fo
 **Verification**: the matrix grew from 25 to 34 cases. The new implementation passes 34/34. The pre-change implementation from git HEAD, run against the same matrix, fails exactly 4 — one missed block (`-uf`) and three spurious blocks (`--format` on the same line, `--force-with-lease`, `--follow-tags`) — which is the claim being made, demonstrated rather than asserted.
 
 **Not fixed, and it should not be**: the guard still matches destructive command names appearing in heredoc bodies and quoted script content, so writing documentation *about* these commands through a shell heredoc is blocked. v2.12.3 taught it to blank `-m`, `--message` and `-F` arguments; extending that to heredoc bodies would open a real hole, because a heredoc fed to `bash` executes. Use the Write tool for such content — the guard hooks Bash only. This cost two turns while writing the previous entry, which is the correct price.
+
+**Rollout of v2.13.6**: MS-01 10/10, mac-mini-m4 6/6, techhu-7940 7/7. Verified **functionally** this time, not by grepping the installed file: one install per machine was fed five payloads and its exit code checked — the recommended lease-based remedy passes, a main-branch push sharing a line with `--format` passes, a clustered short flag containing the force bit blocks, a plain force blocks, and a hard reset still blocks. 5/5 on all three machines. Content checks prove a file arrived; only this proves it decides correctly.
+
+**Two rollout mistakes, both mine, both instructive**: the loop upgraded this repository with `npx`, which cannot work inside the package that owns the name — `node bin/cli.js` is required here and is documented as such. And the remote invocation used `bash -s` instead of `bash -ls`, so no login profile was sourced, `npx` was not on PATH, and all six mac-mini installs failed at once. Both failed loudly and cost one turn each; the general rule is that a rollout script needs a login shell on the remote and an exception for the source repository itself.
