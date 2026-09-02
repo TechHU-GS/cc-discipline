@@ -9,7 +9,7 @@
 - **Project name**: cc-discipline
 - **One-line description**: Discipline framework for Claude Code — rules, hooks, skills, and agents that keep AI on track
 - **Tech stack**: Bash (hooks, init.sh, CLI scripts), Node.js (cli.js cross-platform entry), jq (JSON processing)
-- **Key constraints**: Must work on macOS + Linux + Windows (Git Bash). Hooks must be lightweight (<100ms). Total rules context footprint <3% of 200K context.
+- **Key constraints**: Must work on macOS + Linux + Windows (Git Bash). Hooks must be lightweight. The old `<100ms` figure was measured 2026-09-02 and is not reachable: three hooks fire in parallel on every edit, `bash` startup alone is 33ms each on Git Bash, and the critical path is `pre-edit-guard` at ~647ms for a source file and ~150ms for an exempt one. Treat **~150ms for an exempt file and ~650ms for source** as the current baseline, and do not add a fourth hook to the edit path without measuring. Total rules context footprint <3% of 200K context.
 
 ---
 
@@ -81,6 +81,13 @@ npx cc-discipline@latest upgrade
 - **Path**: `bin/cli.sh`
 - **Purpose**: Legacy bash CLI entry point. Still works for direct bash usage.
 - **Usage**: `bash bin/cli.sh [command] [args]`
+
+### tests/pre-edit-guard-matrix.sh
+- **Path**: `tests/pre-edit-guard-matrix.sh`
+- **Purpose**: 21-case behaviour matrix for `pre-edit-guard.sh`'s exemption decisions — `docs/` prefix and infix, the extension list (including uppercase), `test`/`spec` in the basename, and the near-misses that must NOT be exempt (`docsite/`, `mydocs/`, `documentation.py`, `.markdown`). **Run after ANY change to the exemption patterns**: v2.13.5 swapped three `echo | grep` pipelines and a `basename` for `case` and parameter expansion, and glob matching is a different engine from ERE.
+- **Usage**: `bash tests/pre-edit-guard-matrix.sh [path-to-pre-edit-guard.sh]` (defaults to the templates/ copy). Exits non-zero on any failure.
+- **How it observes**: a non-exempt file is detected by the hook emitting its debug-log note on stdout against a fixture whose `docs/debug-log.md` has unresolved hypotheses; an exempt file produces no output at all.
+- **Created**: 2026-09-02 — alongside the v2.13.5 builtin rewrite
 
 ### tests/git-guard-matrix.sh
 - **Path**: `tests/git-guard-matrix.sh`

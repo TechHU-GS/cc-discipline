@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- **Committed, NOT yet published**: **v2.13.4** — `/coplan` reworked from a four-response usage survey (2.13.3, also unpublished, made its plan file untracked). See the 2026-09-02 entry.
+- **Committed, NOT yet published**: **v2.13.5** — three unpublished releases stacked: 2.13.3 untracked `/coplan`'s plan file, 2.13.4 reworked the skill from a usage survey, 2.13.5 cut `pre-edit-guard`'s exemption path from ~300ms to ~150ms.
 - **Published**: **v2.13.2**, rolled out to all 22 installs. Three releases in one pass — 2.13.0 retired `/finish` and `/retro` and added `/coplan`; 2.13.1 and 2.13.2 fixed two CRLF defects that the rollout itself exposed.
 - **Fleet: 22 installs on 3 machines, all v2.13.2** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (5), techhu-7940 `techhu_dev@100.64.0.18` (7). Verified by scanning for `.claude/hooks/streak-breaker.sh`, **not** by the version file: three installs (`phenology-twin`, `soil-twin`, `vini-twin`) predate 2.0.0, carry no version file, and had been invisible to every previous rollout. The hardcoded seven-project list used since July was stale.
 - **Last updated**: 2026-08-30
@@ -478,3 +478,26 @@ The sandbox is also **binary and has no path granularity** (`:491`), so "let Cod
 **Proposal withdrawn**: two respondents wanted the version history back — one asked for a diff on repeat invocation, another had built a `docs/plans-archive/` directory by hand. Both were reacting to a real loss caused by 2.13.3's untracking. **Adding an archive was drafted and then dropped**: 2.13.3's own commit message says a third location holding the same facts guarantees two go stale, and the user confirmed the record is `progress.md` plus git history. The near-miss is worth recording — a fix proposed one day was almost reversed the next by treating one agent's local improvisation as an established convention. The diff feature would also never have fired, since nobody re-invokes the skill. The cost is now written into the skill as an accepted trade, not silently carried.
 
 **Also changed**: the no-fabrication guard is called out as the file's most important line, after a respondent observed that inventing content on invocation is the hardest failure to self-detect. A closing note warns that a plan file gives an estimate a citable form, which the next revision then treats as established — the mechanism behind six review rounds all finding the same class of error, "推算被写成实测".
+
+### 2026-09-02 — v2.13.5: the hook spent 297ms deciding it had nothing to do
+
+**What**: `pre-edit-guard` extracted `cwd`, ran `basename`, and ran three grep pipelines before deciding whether the edited file was even its business. Profiling the exempt path showed 18 steps over 210ms, of which the actual decision was 24ms; `cwd` costs 41ms and is never read on that path.
+
+**How**: extract `file_path` first, decide the exemptions with `case` and `${FILE_PATH##*/}` — both bash builtins that fork nothing — and pull `cwd` only after every exemption has passed. `nocasematch` reproduces `grep -i` and is set only around the two patterns needing it (available since bash 3.1, so macOS's stock 3.2 is fine); the `docs/` test stays case-sensitive, matching the original grep, which had no `-i`.
+
+**Measured, 10 runs each**:
+
+| target | before | after |
+|---|---|---|
+| `docs/progress.md` | 295 ms | **171 ms** |
+| `README.md` | 341 ms | **146 ms** |
+| `init.sh` (not exempt) | 753 ms | **647 ms** |
+
+**Deliberately not done**: replacing the field extraction (`echo | grep | head | sed`) with parameter expansion. A prototype that did takes the exempt path to **59 ms**, but its `${t%%...}` trim stops at the first quote regardless of JSON escaping — the same shape of assumption that left git-guard dead on Windows for months. That needs the malformed-payload fixture matrix Codex asked for, as its own change.
+
+**Test added**: `tests/pre-edit-guard-matrix.sh`, 21 cases. Both the new implementation and the pre-change one from git HEAD pass all 21, which is the actual claim — the rewrite changes cost, not decisions. It covers the near-misses that make glob-vs-ERE risky: `docsite/`, `mydocs/`, `documentation.py`, and `.markdown` must all still be checked.
+
+**`CLAUDE.md:12` corrected.** The `<100ms` constraint was unreachable on any path and is replaced by the measured baseline, with a note not to add a fourth hook to the edit path without measuring.
+
+**Process note**: fixing a cosmetic escape in this very entry corrupted 11 unrelated lines of this file, because GNU sed treats `\|` in a BRE as alternation, so the pattern matched four separate fragments and replaced each with the whole string. Restored with `git show HEAD:docs/progress.md > docs/progress.md` and reapplied through Python. **Fourth escaping-layer failure this session** — the others were a Python heredoc emitting a real newline instead of a literal `
+`, the same for a carriage return in 2.13.2, and passing an MSYS `/c/...` path to a native Windows Python. Prefer Python with explicit character codes over sed for any content edit that contains shell or regex metacharacters.
