@@ -6,7 +6,8 @@
 
 ## Current Status
 
-- **Shipped**: **v2.13.5**, published and rolled out to all 23 installs (2026-09-02). It carries three releases: 2.13.3 untracked `/coplan`'s plan file, 2.13.4 reworked the skill from a usage survey, 2.13.5 cut `pre-edit-guard`'s exemption path from ~300ms to ~150ms.
+- **Committed, NOT yet published**: **v2.13.6** — the force-push rule in `git-guard` had a real miss, not only false positives. See the second 2026-09-02 entry.
+- **Shipped**: **v2.13.5**, published and rolled out to all 23 installs (2026-09-02).
 - **Published**: **v2.13.2**, rolled out to all 22 installs. Three releases in one pass — 2.13.0 retired `/finish` and `/retro` and added `/coplan`; 2.13.1 and 2.13.2 fixed two CRLF defects that the rollout itself exposed.
 - **Fleet: 22 installs on 3 machines, all v2.13.2** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (5), techhu-7940 `techhu_dev@100.64.0.18` (7). Verified by scanning for `.claude/hooks/streak-breaker.sh`, **not** by the version file: three installs (`phenology-twin`, `soil-twin`, `vini-twin`) predate 2.0.0, carry no version file, and had been invisible to every previous rollout. The hardcoded seven-project list used since July was stale.
 - **Last updated**: 2026-08-30
@@ -525,3 +526,22 @@ The second block had no such command at all — it matched this very paragraph, 
 **One preserved skill, correctly**: `HUB_Rev1_FW` on 7940 kept a locally edited `coplan/SKILL.md` and received the new template as `SKILL.md.new`. Checked before accepting that as correct — the file has no CRLF, its normalized and raw digests are identical, and five of seven skills match their manifest entries exactly. The comparator is healthy and the file really had been edited: conffile behaviour working, not a recurrence of the 2.13.1 hash defect.
 
 **Own mistake worth noting**: the rollout script used `grep -c ... || echo 0`, which prints `0` twice on zero matches because grep exits 1 after having already printed. `CLAUDE.md` documents this exact trap under Known Pitfalls. The correct form assigns first and falls back on the assignment's status.
+
+### 2026-09-02 — v2.13.6: the force-push rule had a real miss, not just false positives
+
+**How it surfaced**: a routine push to main was blocked because the same command line ended with `git log -1 --format=%h`. Investigating that one-line rule found three defects, and the third was the opposite of what the investigation started from.
+
+The old rule was a single line: a `push` test allowing any distance to `(-f|--force)`, ANDed with a `(main|master)` test over the whole command.
+
+1. **`-f` had no word boundary**, so it matched inside `--format`, `--file`, `--follow`.
+2. **The wildcard was unbounded**, so a match anywhere later in a compound command counted — which is how `--format` on the far side of `&&` blocked a push.
+3. **`--force` had no boundary either**, so it matched inside `--force-with-lease` — the guard blocked the exact remedy its own message recommends.
+4. **And the miss**: looking only for the literal two characters `-f` meant `-uf` never matched. `-u` sets upstream and `-f` forces, so `git push -uf origin main` is an ordinary thing to type, and the guard passed it silently. `-fu` was caught only by accident, because `-f` happens to be a literal prefix there.
+
+**The fix**: extract the push command as a segment bounded by `;`, `&` and `|`, then test the flag inside it with `(^|[[:space:]])(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]]|$)`. The letter class catches any clustered short flag containing `f` while `--format` cannot match it, because a letter class cannot consume the second dash. `--force-with-lease` fails the trailing anchor and passes.
+
+**Deliberately left unanchored**: the `(main|master)` branch test. Anchoring it the same way would let `refs/heads/main` through, and scoping it to the push segment already removes the false positive it caused. This guard's failure direction is loud by design — a false positive costs one turn, a miss costs the user's history. That asymmetry is why defect 4 matters more than defects 1 to 3 combined, even though they are what prompted the look.
+
+**Verification**: the matrix grew from 25 to 34 cases. The new implementation passes 34/34. The pre-change implementation from git HEAD, run against the same matrix, fails exactly 4 — one missed block (`-uf`) and three spurious blocks (`--format` on the same line, `--force-with-lease`, `--follow-tags`) — which is the claim being made, demonstrated rather than asserted.
+
+**Not fixed, and it should not be**: the guard still matches destructive command names appearing in heredoc bodies and quoted script content, so writing documentation *about* these commands through a shell heredoc is blocked. v2.12.3 taught it to blank `-m`, `--message` and `-F` arguments; extending that to heredoc bodies would open a real hole, because a heredoc fed to `bash` executes. Use the Write tool for such content — the guard hooks Bash only. This cost two turns while writing the previous entry, which is the correct price.

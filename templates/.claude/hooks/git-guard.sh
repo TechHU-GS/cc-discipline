@@ -98,7 +98,28 @@ if echo "$CMD_SCAN" | grep -qE 'git\s+branch\s+-D\s'; then
 fi
 
 # git push --force / -f (to main/master)
-if echo "$CMD_SCAN" | grep -qE 'git\s+push\s+.*(-f|--force)' && echo "$CMD_SCAN" | grep -qE '(main|master)'; then
+#
+# Both the flag test and the branch test are scoped to the push command itself
+# and anchored on both sides. Three defects found 2026-09-02, all from the old
+# one-line form:
+#   1. `-f` had no word boundary, so it matched inside `--format`, `--file` and
+#      `--follow`.
+#   2. `.*` was unbounded, so a match anywhere later in a compound command
+#      counted — pushing to main on the same line as `git log --format=%h` was
+#      blocked as a force-push.
+#   3. `--force` had no boundary either, so it matched inside
+#      `--force-with-lease` — the guard blocked the very remedy it recommends.
+# `-[a-zA-Z]*f[a-zA-Z]*` still catches clustered short flags (-fu, -uf, -ufv);
+# `--format` cannot match it because a letter class cannot consume the second
+# dash. `[^;&|]*` keeps the scan inside one command, which is also what fixes
+# the branch test — moving it inside the segment stops `... origin dev && echo
+# main` from counting. The branch test itself stays deliberately UNanchored:
+# anchoring it would let `refs/heads/main` through, and a miss here costs the
+# user's history while a false positive costs one turn.
+PUSH_SEG=$(printf '%s' "$CMD_SCAN" | sed -n 's/.*\(git[[:space:]]\{1,\}push[^;&|]*\).*/\1/p')
+if [ -n "$PUSH_SEG" ] \
+   && printf '%s' "$PUSH_SEG" | grep -qE '(^|[[:space:]])(-[a-zA-Z]*f[a-zA-Z]*|--force)([[:space:]]|$)' \
+   && printf '%s' "$PUSH_SEG" | grep -qE '(main|master)'; then
     BLOCKED="git push --force to main/master (rewrites shared history)"
     SUGGESTION="git push --force-with-lease"
 fi
