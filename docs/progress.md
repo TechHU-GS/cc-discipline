@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- **Committed, NOT yet published**: **v2.13.5** — three unpublished releases stacked: 2.13.3 untracked `/coplan`'s plan file, 2.13.4 reworked the skill from a usage survey, 2.13.5 cut `pre-edit-guard`'s exemption path from ~300ms to ~150ms.
+- **Shipped**: **v2.13.5**, published and rolled out to all 23 installs (2026-09-02). It carries three releases: 2.13.3 untracked `/coplan`'s plan file, 2.13.4 reworked the skill from a usage survey, 2.13.5 cut `pre-edit-guard`'s exemption path from ~300ms to ~150ms.
 - **Published**: **v2.13.2**, rolled out to all 22 installs. Three releases in one pass — 2.13.0 retired `/finish` and `/retro` and added `/coplan`; 2.13.1 and 2.13.2 fixed two CRLF defects that the rollout itself exposed.
 - **Fleet: 22 installs on 3 machines, all v2.13.2** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (5), techhu-7940 `techhu_dev@100.64.0.18` (7). Verified by scanning for `.claude/hooks/streak-breaker.sh`, **not** by the version file: three installs (`phenology-twin`, `soil-twin`, `vini-twin`) predate 2.0.0, carry no version file, and had been invisible to every previous rollout. The hardcoded seven-project list used since July was stale.
 - **Last updated**: 2026-08-30
@@ -501,3 +501,27 @@ The sandbox is also **binary and has no path granularity** (`:491`), so "let Cod
 
 **Process note**: fixing a cosmetic escape in this very entry corrupted 11 unrelated lines of this file, because GNU sed treats `\|` in a BRE as alternation, so the pattern matched four separate fragments and replaced each with the whole string. Restored with `git show HEAD:docs/progress.md > docs/progress.md` and reapplied through Python. **Fourth escaping-layer failure this session** — the others were a Python heredoc emitting a real newline instead of a literal `
 `, the same for a carriage return in 2.13.2, and passing an MSYS `/c/...` path to a native Windows Python. Prefer Python with explicit character codes over sed for any content edit that contains shell or regex metacharacters.
+
+### 2026-09-02 — rollout of v2.13.5: 23 installs, and four new traps
+
+**Result**: MS-01 10/10, mac-mini-m4 6/6, techhu-7940 7/7 — **23 installs**, each verified on two conditions (the version marker reads 2.13.5 **and** the new `pre-edit-guard` contains `nocasematch`), not on the installer's own output.
+
+**The count was 22 and is now 23.** mac-mini has six, not the five previously recorded: `gem_flutter_mobile_convergence_worktree` is a git worktree with its own `.claude/`, invisible to any inventory that assumes one install per repository.
+
+**Trap 1 — `npm publish` returns success before the registry serves the version.** The publish printed its success line and then "your package is being processed"; a direct registry fetch showed 2.13.5 absent for another ~80 seconds. Rolling out during that window would have silently reinstalled 2.13.2 everywhere.
+
+**Trap 2 — npm's *local metadata cache* lags the registry independently.** After 2.13.5 was live and confirmed by direct fetch, `npx cc-discipline@2.13.5 upgrade` still failed with `ETARGET: No matching version found` on all nine local projects. The failure was invisible in the summary: the version marker simply stayed at 2.13.2, and `.new` files left over from the *previous* rollout made it look as though work had happened. **`--prefer-online` is required**, and the version marker must be read afterwards — the installer never ran at all.
+
+**Trap 3 — `npx` inside `find | while read` eats the loop's input.** On the WSL machine the loop processed exactly one project and stopped: `npx` consumed the rest of `find`'s output from the shared stdin. It did not happen on macOS, so it first looked like a dropped connection. Collect the list into a variable and iterate with `for`, or redirect the command's stdin from `/dev/null`.
+
+**Trap 4 — git-guard false-positived twice while this entry was being written, for two different reasons.**
+
+The first block hit a real command. Its pattern is `push` preceded by git and followed by `.*(-f|--force)`, combined with a `main|master` test. Two things compound: the `-f` alternative carries **no word boundary**, so it matches inside `--format`, and the `.*` runs greedily across the **whole compound command** rather than stopping at the push. So any push to main that shares a command line with `--format`, `--file`, or `--follow` is blocked. Worth fixing by anchoring the flag.
+
+The second block had no such command at all — it matched this very paragraph, inside a Python string being written to this file. v2.12.3 taught the guard to blank `-m`, `--message`, and `-F` arguments so that commit messages *describing* destructive commands pass, but heredoc bodies and quoted script content are not covered. **This one should not be fixed**: blanking heredoc bodies would open a real hole, since a heredoc fed to `bash` executes. Documentation about these commands should be written with the Write tool, which the guard does not gate. Both blocks cost one turn each, which is the correct failure direction for the only guard that prevents unrecoverable loss.
+
+**Deliberately not upgraded**: `_private-reference/gem-platform-archive` (2.10.2) and `_private-reference/tb-suite-ng` (2.10.0) on 7940 — frozen reference copies. The previously recorded count of seven for that machine already excluded them.
+
+**One preserved skill, correctly**: `HUB_Rev1_FW` on 7940 kept a locally edited `coplan/SKILL.md` and received the new template as `SKILL.md.new`. Checked before accepting that as correct — the file has no CRLF, its normalized and raw digests are identical, and five of seven skills match their manifest entries exactly. The comparator is healthy and the file really had been edited: conffile behaviour working, not a recurrence of the 2.13.1 hash defect.
+
+**Own mistake worth noting**: the rollout script used `grep -c ... || echo 0`, which prints `0` twice on zero matches because grep exits 1 after having already printed. `CLAUDE.md` documents this exact trap under Known Pitfalls. The correct form assigns first and falls back on the assignment's status.
