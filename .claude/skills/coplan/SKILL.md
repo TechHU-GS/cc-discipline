@@ -10,9 +10,20 @@ This skill does not produce the plan and does not decide anything. It takes what
 
 If there is no plan on the table yet — no approaches from `/think`, nothing described in conversation — **say so and stop**. Point at `/think` instead. Do not invent a plan just to have something to write: a fabricated plan sent for review wastes a Codex run and produces confident feedback on something nobody proposed.
 
+## The file is a scratch file, not a record
+
+**It must not be tracked by git.** Before writing, make sure `docs/current-plan.md` is in `.gitignore`; add the line if it is missing. If the file is already tracked, say so and offer to untrack it with `git rm --cached docs/current-plan.md` — do not run that silently, and never commit this file yourself.
+
+Two reasons, and neither is tidiness:
+
+- **A tracked file that is always modified becomes a standing passenger.** It sits in every `git status`, so it rides into unrelated commits whenever anything sweeps the working tree. This has already happened: a commit whose message said it touched only documentation also carried temporary debug instrumentation onto `main` and out to two remotes. Untracking removes the passenger; telling someone to be careful does not — `/commit` already says to stage selectively, and it happened anyway.
+- **It is not where the decision lives.** What was decided and why belongs in `docs/progress.md` and in commit messages. A superseded draft's diff — a wrong causal model, an arithmetic slip — holds nothing the progress entry does not hold better. Keeping the same fact in three places only guarantees two of them go stale.
+
+Untracking costs nothing downstream: `/codex:rescue` reads the working tree directly, so it sees an ignored file exactly as well as a committed one.
+
 ## What to write
 
-**Overwrite the file completely.** One path, current version only — every earlier version survives in `git log -p docs/current-plan.md`, so nothing is lost and the directory never fills with dated files.
+**Overwrite the file completely.** One plan at a time; a superseded draft has no further use.
 
 Include, in this order:
 

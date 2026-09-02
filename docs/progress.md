@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- **Committed, NOT yet published**: **v2.13.3** — `/coplan`'s plan file is now a scratch file: untracked, gitignored, never committed by the skill. See the 2026-09-01 entry.
+- **Committed, NOT yet published**: **v2.13.4** — `/coplan` reworked from a four-response usage survey (2.13.3, also unpublished, made its plan file untracked). See the 2026-09-02 entry.
 - **Published**: **v2.13.2**, rolled out to all 22 installs. Three releases in one pass — 2.13.0 retired `/finish` and `/retro` and added `/coplan`; 2.13.1 and 2.13.2 fixed two CRLF defects that the rollout itself exposed.
 - **Fleet: 22 installs on 3 machines, all v2.13.2** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (5), techhu-7940 `techhu_dev@100.64.0.18` (7). Verified by scanning for `.claude/hooks/streak-breaker.sh`, **not** by the version file: three installs (`phenology-twin`, `soil-twin`, `vini-twin`) predate 2.0.0, carry no version file, and had been invisible to every previous rollout. The hardcoded seven-project list used since July was stale.
 - **Last updated**: 2026-08-30
@@ -432,3 +432,49 @@ The sandbox is also **binary and has no path granularity** (`:491`), so "let Cod
 **Verified it costs nothing downstream**: `/codex:rescue` reads the working tree directly, so an ignored plan file is as readable as a committed one. It also *helps* — `getWorkingTreeState` (`lib/git.mjs:125`) builds its untracked list with `--exclude-standard`, so an ignored file no longer counts toward `isDirty`, removing one permanent trigger of the silent scope narrowing recorded on 2026-08-31.
 
 **Noted**: several other projects had already untracked the file on their own before this change.
+
+### 2026-09-01 — hook latency measured properly; the recorded figures were wrong in three ways
+
+**Method**: instrumented the three installed `PreToolUse` hooks with `$EPOCHREALTIME` (a bash 5 builtin — zero fork, so the probe does not distort what it measures), triggered five real `Edit` calls through the harness, then restored the hooks and verified all three SHA-256 digests matched the pre-instrumentation snapshot. Profiling used `PS4='+ $EPOCHREALTIME | '` with `set -x` on a scratchpad copy.
+
+**Finding 1 — the three hooks run in parallel.** Consecutive PIDs, all three starting within 15 ms of each other, intervals fully overlapping. The earlier assumption of serial execution was never checked.
+
+**Finding 2 — contention between them is negligible.** `pre-edit-guard` costs the same run alone (755 ms) as it does with the other two running beside it (728-834 ms). An earlier claim in this session that parallelism made each hook twice as slow was wrong; the apparent slowdown was a payload difference, not contention.
+
+**Finding 3 — cost depends on the target file, by roughly 3x.** `pre-edit-guard` exits early for `docs/` paths (:25), for basenames matching `test|spec` (:30), and for `.md/.json/.yaml/.yml/.toml/.cfg/.ini` (:35). Everything else runs the full path, including an `awk` pass over `docs/debug-log.md` and three `count_lines` calls over `new_string`/`content`/`old_string`.
+
+| target | measured |
+|---|---|
+| `docs/progress.md` | 283 ms |
+| `README.md` | 356 ms |
+| `probe.sh` | 755 ms |
+| `init.sh` | 800 ms |
+
+**What this corrects**: the previously recorded "1267 ms per Edit, 65 subprocess calls" was wrong three times over — it summed hooks that run in parallel, it counted subprocess occurrences in source rather than executions, and it was measured against a markdown payload that takes the cheap path. The real figure is **~770 ms when editing source, ~300 ms when editing docs**, and the critical path is `pre-edit-guard` alone: the other two finish at 355 ms and 180 ms, entirely inside its shadow.
+
+**What this means for any fix**:
+- **Optimize `pre-edit-guard` only.** Work on the other two buys nothing while they finish inside its runtime.
+- **There is no hotspot.** The profile shows 69 traced steps over 728 ms; the twelve most expensive account for only 39%. Cost is spread thin at roughly 10-30 ms per step because each step is a fork. Even `command -v jq` costs 19.8 ms.
+- **Merging the hooks into one process is probably a pessimization**, not an optimization: it would serialize work that currently overlaps. This is the opposite of what the draft plan assumed.
+- **`CLAUDE.md:12`'s `<100 ms` is unreachable on any path.** Even the cheapest early-exit route costs 283 ms, and that is three `echo | grep` pipelines plus a `command -v` before the hook decides it has nothing to do.
+
+**Still unmeasured**: macOS and Linux, where `fork` is far cheaper; and whether jq being present changes the picture, since this box has none.
+
+### 2026-09-02 — /coplan reworked from a usage survey, and one proposal withdrawn
+
+**What was asked**: four days after `/coplan` shipped, a short survey went to three repos — do you use it, where is the friction, is "Assumptions to verify" earning its place, do you actually send the review, does `/think` stacking work. Three responses came back; a fourth was a duplicate paste of the first and was discarded rather than counted as independent agreement.
+
+**Usage, and why the obvious reading was wrong**: all three reported **zero self-initiated** invocations, and one explicitly proposed applying the `/finish` and `/retro` retirement standard. That reading measures the wrong actor. `/finish` and `/retro` were designed to be model-initiated and were not; `/coplan` is user-initiated by design, and the user invoked it three times in four days across three repos, each time for its stated purpose — producing a plan file to send for external review. Compared against `/commit` and `/think`, that is normal adoption. What the data does condemn is the skill's own `when_to_use`, which was phrased as if the model would reach for it. Fixed.
+
+**Converged findings (3/3)**:
+- The skill is invoked once per plan; every later revision is hand-editing. "Overwrite completely" described a mode that does not occur.
+- All friction sits *after* the review returns — one respondent spent over an hour folding 22 findings into a file that had grown to 785 lines. The skill has no presence in that phase.
+- The review request's wording determines the review's quality, and the skill supplied one generic line. Independently confirmed by this repo's own Codex run the same day, which returned a diffuse review against an unfocused request.
+
+**Where the responses disagreed, and the dissent won on detail**: two respondents called *Assumptions to verify* the skill's real product (one reported 3 of 8 and 3 of 7 entries coming back FALSE, each changing the design). The third disagreed with a sharper argument: the findings that mattered in their case were scattered through the whole document, and **the most expensive error was not an unchecked assumption but a checked one with a stale source** — the plan cited `RELEASE_NOTES.md:31`, the reviewer opened the same line, and both were wrong together. The section asks "what did I not check"; it cannot reach "I checked, in the wrong place." Section 4 now asks both questions.
+
+**A rule worth having, from the second respondent**: an entry belongs in that section only if it can be falsified by opening a named file or running one command. Anything else ("assumes the quarterly cron will run") can only earn "holds with caveats" and belongs in Risks. Paired with the converse, learned here the same day: anything checkable in under a minute should be checked while writing, not parked for a reviewer. That section had become a respectable way to write "I did not bother."
+
+**Proposal withdrawn**: two respondents wanted the version history back — one asked for a diff on repeat invocation, another had built a `docs/plans-archive/` directory by hand. Both were reacting to a real loss caused by 2.13.3's untracking. **Adding an archive was drafted and then dropped**: 2.13.3's own commit message says a third location holding the same facts guarantees two go stale, and the user confirmed the record is `progress.md` plus git history. The near-miss is worth recording — a fix proposed one day was almost reversed the next by treating one agent's local improvisation as an established convention. The diff feature would also never have fired, since nobody re-invokes the skill. The cost is now written into the skill as an accepted trade, not silently carried.
+
+**Also changed**: the no-fabrication guard is called out as the file's most important line, after a respondent observed that inventing content on invocation is the hardest failure to self-detect. A closing note warns that a plan file gives an estimate a citable form, which the next revision then treats as established — the mechanism behind six review rounds all finding the same class of error, "推算被写成实测".
