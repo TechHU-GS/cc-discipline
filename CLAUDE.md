@@ -9,7 +9,7 @@
 - **Project name**: cc-discipline
 - **One-line description**: Discipline framework for Claude Code — rules, hooks, skills, and agents that keep AI on track
 - **Tech stack**: Bash (hooks, init.sh, CLI scripts), Node.js (cli.js cross-platform entry), jq (JSON processing)
-- **Key constraints**: Must work on macOS + Linux + Windows (Git Bash). Hooks must be lightweight. The old `<100ms` figure was measured 2026-09-02 and is not reachable: three hooks fire in parallel on every edit, `bash` startup alone is 33ms each on Git Bash, and the critical path is `pre-edit-guard` at ~647ms for a source file and ~150ms for an exempt one. Treat **~150ms for an exempt file and ~650ms for source** as the current baseline, and do not add a fourth hook to the edit path without measuring. Total rules context footprint <3% of 200K context.
+- **Key constraints**: Must work on macOS + Linux + Windows (Git Bash). Hook latency baseline is in Known Pitfalls; measure before adding one. Total rules context footprint <3% of 200K context.
 
 ---
 
@@ -109,37 +109,58 @@ npx cc-discipline@latest upgrade
 
 ## Known Pitfalls
 
-- **macOS /tmp → /private/tmp**: `cwd` in hook JSON will be `/private/tmp/...`. Use both paths for file checks.
-- **npm bin path on Windows**: npm creates `.cmd` shims, bash scripts don't work directly. cli.js solves this.
-- **`npx cc-discipline` FAILS inside this repo** — npx resolves the name against the local `package.json`, finds our own name, then looks for a `cc-discipline` bin that was never installed into `node_modules/.bin`, and dies with `'cc-discipline' is not recognized as an internal or external command`. Use `node bin/cli.js upgrade` for the dogfood install. Worse, the failure is easy to mistake for success: it exits with a *message*, so if you pipe the output through a filtering `grep` you see nothing and may conclude "upgrade ran, nothing changed" — always check the version marker at `.claude/.cc-discipline-version` afterwards.
-- **`cp -r "$dir/" dest/` means different things on GNU and BSD — never use it.** With a trailing slash on the source, GNU cp copies the *directory*; BSD cp (macOS) copies its *contents*. v2.11.0's "directory-driven" skill install used `for skill_dir in .../skills/*/` (the glob appends the slash) plus `cp -r "$skill_dir" .claude/skills/`, so **on macOS every skill's SKILL.md was written over the previous one at `.claude/skills/SKILL.md` and not one skill was ever installed or updated.** Found 2026-07-30 on all 9 Mac projects: a stray `.claude/skills/SKILL.md` holding `think` (last in the loop), skill dirs frozen at their first-install date, and `/finish` missing everywhere. Fixed in v2.12.1 by copying into an explicit destination (`mkdir -p ".claude/skills/$name"; cp -R "$skill_dir"* ".claude/skills/$name/"`), plus cleanup of the stray file.
-  Why it hid: rules/hooks/agents copy **individual files** (`cp file dst/`), which has no GNU/BSD divergence, so they kept updating correctly and the version marker advanced — the install looked healthy. `status`/`doctor` glob `skills/*/`, and a bare file is not a directory, so neither could see it. **Test installs on macOS AND Windows before releasing; a Windows-only test would not have caught this.**
-- **`upgrade` silently overwrites customized skills.** `init.sh` installs skills with a plain `cp -r` per template dir, so anything a user filled in gets replaced by the template — notably `/self-check`'s **Project-specific Checks** section, which exists *specifically* to be filled in. Verified on this repo 2026-07-30: two real project checks were wiped by an upgrade. Recoverable (the pre-upgrade `.claude/.backup-<ts>/` holds the old skills) but nothing tells you it happened. **Before upgrading a project that has filled that section, save it and restore afterwards.** Extra user-authored skill dirs are safe — the loop only copies template dirs and never deletes.
-- **set -e on Git Bash**: Many commands fail silently on Windows due to path/command differences. Disabled for MINGW/MSYS.
-- **jq not always available**: Every hook MUST have grep/sed fallbacks for jq — for EVERY field it reads, not just the obvious one. v2.11.0 fixed `session_id` in action-counter but left five other jq-only reads in place; the v2.12.0 audit found them, and one was severe: **git-guard read `tool_name` with jq only, so on Windows it exited 0 at the first check and every destructive-git guard in the file was dead code from day one** (`git reset --hard`, `git clean -fd`, `git checkout .` all passed silently — verified). post-error-remind was worse than useless: its no-jq path fell back to `OUTPUT="$RAW_INPUT"`, matching error patterns against the whole JSON envelope *including the command text*, so `grep -rn "permission denied" logs/` flagged itself.
-  **Guard against recurrence — run this before any release and after touching a hook:**
+Rules only. The incidents behind them are in `docs/progress.md` — do not restate them here, or one of the two copies will go stale.
+
+### Cross-platform
+
+- **`stat -c` BEFORE `stat -f`, and validate the result is a bare integer before arithmetic.** The order is not symmetric: on GNU stat `-f` means *show filesystem status* and **succeeds**, printing a multi-line dump, so a `-f || -c` chain never reaches its fallback. `case "$V" in ''|*[!0-9]*) V="" ;; esac`.
+- **Never `cp -r "$dir/" dest/`.** With a trailing slash GNU copies the *directory*, BSD copies its *contents*. Copy into an explicit destination: `mkdir -p "$dst"; cp -R "$src"* "$dst/"`.
+- **macOS `/tmp` is `/private/tmp`.** Hook JSON `cwd` may carry either; check both paths.
+- **`set -e` is disabled on MINGW/MSYS** — too many commands fail silently there.
+- **Test installs on macOS AND Windows before releasing.** The `cp -r` bug was macOS-only and shipped through three versions while every Windows test passed.
+
+### Hooks
+
+- **Every `jq` read needs a grep/sed fallback — for EVERY field, not just the obvious one.** git-guard once read `tool_name` with jq alone, so on any jq-less machine it exited 0 at the first check and every destructive-git guard below it was dead code from day one. Audit with `grep -n 'jq -r' templates/.claude/hooks/*.sh`: every hit must sit inside a `command -v jq` branch that has an `else`.
+- **Choose each hook's failure direction deliberately and say so in a comment.** git-guard fails **loud** — a spurious prompt costs one turn, a miss costs the user's work. post-error-remind fails **silent** — a false positive misleads.
+- **Run the matrices after touching either guard's matching**: `tests/git-guard-matrix.sh` (34 cases) and `tests/pre-edit-guard-matrix.sh` (21). Glob, ERE and BRE are different engines; equivalence must be demonstrated, not assumed.
+- **git-guard also matches destructive command names inside heredoc bodies and quoted script text**, so writing documentation *about* those commands through a shell heredoc is blocked. Use the Write tool, which the guard does not gate. **Do not "fix" this** — blanking heredoc bodies would open a real hole, since a heredoc fed to `bash` executes.
+- **Edit-path latency baseline** (Git Bash, jq absent): the three `PreToolUse` hooks run in parallel and `pre-edit-guard` is the critical path — ~150ms for an exempt file, ~650ms for source. Do not add a fourth hook to that path without measuring.
+
+### Shell escaping
+
+Four separate failures in one session came from this family. Prefer Python with explicit character codes over `sed` for any content edit containing shell or regex metacharacters.
+
+- **`printf` eats one backslash level.** `printf 'a\nb'` emits a REAL newline; `printf 'x\r'` a REAL carriage return. For a literal backslash sequence use `awk 'BEGIN{printf "a%cn", 92}'`, or rephrase to avoid it.
+- **In `sed`'s BRE, `\|` is ALTERNATION, not a literal pipe.** One such pattern, meant to fix a single string, replaced 11 unrelated fragments across `progress.md`.
+- **`grep -c` exits 1 on zero matches.** Use `VAR=$(grep -c ...) || VAR=0` — never `grep -c ... || echo 0`, which prints `0` twice because grep already printed one.
+- **`grep '\*\.js'` matches `*.json`.** Anchor it: `grep -qE '^\*\.js[[:space:]]'`.
+- **Python is a native Windows binary and cannot open MSYS paths.** Pass `C:/Users/...`, never `/c/Users/...` — the failure is `FileNotFoundError`, which reads as "the thing was never created".
+
+### Release
+
+- **Version lives only in `package.json`.** init.sh reads it through the cli.js env var; no hardcoded versions anywhere.
+- **`.gitattributes` forces `eol=lf`** for `*.sh`, `*.md`, `*.json`, `*.js` and the four extensionless files: `.cc-discipline-version`, `.cc-discipline-skills.manifest`, `.gitignore`, and `.gitattributes` itself. **`npm publish` packs the WORKING TREE, not git**, so a clean `git show` proves nothing. Verify:
   ```bash
-  # Every jq read must sit inside a `command -v jq` branch that has an else.
-  grep -n 'jq -r' templates/.claude/hooks/*.sh
-  # Then actually run them with jq absent (this repo's dev box has no jq):
-  for f in templates/.claude/hooks/*.sh; do bash -n "$f" || echo "SYNTAX $f"; done
+  find . -name node_modules -prune -o -name .git -prune -o -type f \
+    \( -name '*.sh' -o -name '*.md' -o -name '*.json' -o -name '*.js' \) -print \
+    | xargs file | grep CR          # must print nothing
+  head -1 bin/cli.js | cat -A       # must end node$, not node^M$
   ```
-  Choose the failure direction deliberately and write it in a comment: git-guard fails **loud** (a spurious confirmation costs one turn, a miss costs the user's work); post-error-remind fails **silent** (a false positive misleads).
-- **grep -c returns exit 1 on zero matches**: Use `VAR=$(grep -c ...) || VAR=0`, not `grep -c ... || echo "0"`.
-- **stat -c BEFORE stat -f — the reverse is broken**: GNU stat (Linux, Windows Git Bash) uses `stat -c %Y`; BSD stat (macOS) uses `stat -f %m`. Order matters and is NOT symmetric: in GNU stat `-f` is not BSD's "format" flag, it means *show filesystem status* — so `stat -f %m file` SUCCEEDS on Git Bash and prints a multi-line filesystem dump, which means a `stat -f ... || stat -c ...` chain never reaches the fallback and the caller then does arithmetic on that dump. That is exactly what shipped: action-counter's progress.md staleness check spewed `syntax error in expression` on every 50th action on Windows and never worked there. `stat -c` on macOS is simply an invalid option, so it fails cleanly. Always try `-c` first, and validate the result is a bare integer (`case "$V" in ''|*[!0-9]*) V="" ;; esac`) before arithmetic. Fixed v2.12.0.
-- **Version must be bumped in package.json only**: init.sh reads from package.json via cli.js env var. No hardcoded versions.
-- **CRLF on Windows → macOS breakage**: `.gitattributes` forces `eol=lf` for .sh/.md/.json **and .js**. `.js` was added 2026-07-30 after nearly shipping a broken 2.12.0: `bin/cli.js` is the npm `bin` target, so on macOS/Linux npm runs it via its shebang, and a CRLF file leaves a stray CR after `node` → `env: node: No such file or directory`. The CLI works fine as `node bin/cli.js` either way, which is why this hides.
-  **Two things that make this easy to miss — check both:**
-  - **`npm publish` packs the WORKING TREE, not git.** Git had `cli.js` as LF the whole time; only the Windows checkout was CRLF (`.gitattributes` didn't cover `.js`). A clean `git show` proves nothing about what ships.
-  - Verify with a scan that includes `.js`, not just `file init.sh`:
-    ```bash
-    find . -name node_modules -prune -o -name .git -prune -o -type f \
-      \( -name '*.sh' -o -name '*.md' -o -name '*.json' -o -name '*.js' \) -print \
-      | xargs file | grep CR
-    ```
-    Must print nothing. Check the shebang specifically with `head -1 bin/cli.js | cat -A` — it must end `node$`, not `node^M$`.
-- **`printf` in bash eats one backslash level — twice**: `printf 'a\\nb'` emits a REAL newline, and `printf 'x\\r'` emits a REAL carriage return. Writing a doc comment *about* `\r` this way silently injected a CR into `.gitattributes` (caught with `cat -A`). To emit a literal backslash sequence use `awk 'BEGIN{printf "a%cn", 92}'`, or just rephrase to avoid the escape. Same trap when building hook test payloads — see docs/progress.md Gotchas.
-- **`grep '\*\.js'` matches `*.json`**: guarding an append to `.gitattributes` with that pattern silently skipped the append. Anchor it: `grep -qE '^\*\.js[[:space:]]'`.
+- **`npx cc-discipline` cannot work inside this repo** — npx resolves the name against the local `package.json`. Use `node bin/cli.js`. It fails with a *message*, so a filtering `grep` shows nothing and reads as "ran, nothing changed"; always check `.claude/.cc-discipline-version` afterwards.
+- **After publishing, wait for the registry, then force npm past its own cache.** The registry serves a new version roughly 80s after `npm publish` returns success, and npm's *local metadata cache* lags that independently — `npx cc-discipline@<version>` fails with `ETARGET` while the version is demonstrably live. Roll out with `npx -y --prefer-online cc-discipline@<version>`, and read the version marker afterwards rather than trusting installer output.
+
+### Rollout
+
+- **Enumerate installs by the marker `.claude/hooks/streak-breaker.sh`, never by the version file.** The oldest installs have no version file at all, so a version-based inventory is structurally blind to exactly the ones most in need of upgrading.
+- **Remote rollout needs a LOGIN shell**: `ssh host 'bash -ls -- <args>' < script.sh`. Without `-l` no profile is sourced and `npx` is not on PATH — six installs failed together this way.
+- **`npx` inside `find | while read` eats the loop's stdin.** Collect the list into a variable and iterate with `for`, or redirect the command's stdin from `/dev/null`.
+- **Verify functionally, not by file content.** Grepping the installed file proves it arrived; feeding a guard payloads and checking exit codes proves it decides correctly.
+
+### Skills
+
+- **Skills are conffiles.** A modified skill is preserved and the current template is written beside it as `SKILL.md.new`. There is no need to hand-save `/self-check`'s Project-specific Checks before upgrading — that was required before 2.12.2 and is not now. Extra user-authored skill dirs are never touched.
+- **Installs that jumped from `<2.12.2` have no manifest**, so retired skills are never removed there and will persist indefinitely.
 
 ---
 
