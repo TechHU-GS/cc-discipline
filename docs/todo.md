@@ -5,7 +5,7 @@
 
 ## Now
 
-- [ ] Publish 2.14.0 to npm once the token is rotated (Later): until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one to the git-guard with 14 bypasses. Push the local commits to GitHub with it
+- [ ] Publish 2.14.0 to npm once the token is rotated (Later): until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one to the git-guard with 14 bypasses. GitHub is already current (pushed 2026-09-24, `62f0c7b`)
 
 ## Later
 
