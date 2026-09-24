@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- **Shipped**: **v2.15.1**, published to npm (2026-09-24, `latest`) and deployed to all 25 approved installs, verified functionally. The npm tarball is byte-identical to the one rehearsed and deployed (shasum `46d05e3d…`).
+- **Shipped**: **v2.15.2** deployed to all 25 approved installs (2026-09-25), verified functionally; npm still serves 2.15.1 until the user publishes 2.15.2 from their terminal.
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
 - **2.14.0 → 2.15.1 (2026-09-23/24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, and `/coplan`'s review offer (2.14.0); fixes from three field reports (2.15.0); a date-parsing fix and the Write-tool note (2.15.1). 2.14.0 and 2.15.0 were deployed from tarballs and never published; 2.15.1 is on npm. See the 2026-09-23 and 2026-09-24 entries.
 - **Last updated**: 2026-09-24
@@ -959,3 +959,8 @@ On the way, the worktree test compared a relative `--git-common-dir` with an abs
 - `>` and `>>` followed directly by a Chinese file name.
 
 Before the fix, under C.UTF-8 on mac-mini, session-start failed 4 of 64 and git-guard 1 of 156 (a spurious block). After it, both matrices, plus pre-edit-guard, pass under C, C.UTF-8 and en_US.UTF-8 on mac-mini, and under C and C.UTF-8 on techhu-7940's Git Bash (whose default is en_US.UTF-8).
+
+**Rolled out 2026-09-25 with the `tools/` scripts, their first use.**
+- **Rehearsal:** 2.15.1 → 2.15.2 on all three machines; mac-mini under `LC_ALL=C.UTF-8`.
+- **Rollout:** 25/25 approved installs are on 2.15.2, each passing the five guard payloads with git-guard registered once. techhu-7940 found 9: HUB_Rev1_FW had already removed its scratch worktree.
+- **In the reporting project** (mac-mini ziiqii-geosense, under C.UTF-8 and en_US.UTF-8), session-start injects Current Status again: "Last updated: 2026-09-25", not the file's tail.
