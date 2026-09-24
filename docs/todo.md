@@ -5,9 +5,11 @@
 
 ## Now
 
+- [ ] Pass on the two replies drafted on 2026-09-24 to the HUB_Rev1_FW session (techhu-7940) and the ziiqii-geosense session (mac-mini). They are not reachable from here, so the user relays them. HUB_Rev1_FW will then remove `D:/Code/HUB_Rev1_FW_wt_head` itself.
 
 ## Later
 
+- [ ] Fold in the test cases the field projects offered: techhu-devices' 21-case `scripts/git-guard-check.sh` (plus its results on 2.15.x) and ziiqii-geosense's `gg-cases.txt`/`gg-run.py` (43+5). Run each against the current hook and add whatever the matrix lacks — revisit: when they arrive.
 - [ ] Measure a git-derived freshness for the status section (HUB_Rev1_FW's suggestion: the newest commit date among the section's lines, `git blame -L`, with uncommitted lines counting as today) on HUB's multi-thousand-line progress.md, on Windows Git Bash, and adopt it only if session-start stays near 400ms — revisit: before the next session-start change. 2.15.1 makes an explicit "last updated" line beat the heading date meanwhile.
 - [ ] git-guard gaps left out of the next release: `switch -f`/`--discard-changes`, `worktree remove --force`, `update-ref -d`, `checkout <commit> <path>` — revisit: after the next release, when each is one rule plus tests.
 - [ ] Move `/self-check`'s project-specific checks out of the framework's SKILL.md into a project-owned file, so a template change stops producing `SKILL.md.new` in every install that has any (about fifteen did in the 2.14.0 rollout) — revisit: after 2.15.0, or the next time the self-check template changes.

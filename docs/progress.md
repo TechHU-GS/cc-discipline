@@ -8,11 +8,11 @@
 
 - **Shipped**: **v2.15.1**, published to npm (2026-09-24, `latest`) and deployed to all 25 approved installs, verified functionally. The npm tarball is byte-identical to the one rehearsed and deployed (shasum `46d05e3d…`).
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
-- **2.15.0 (2026-09-24)**: 2.14.0 (the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, `/coplan`'s review offer), plus the fixes from three field reports. Committed, pushed and deployed; unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
+- **2.14.0 → 2.15.1 (2026-09-23/24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, and `/coplan`'s review offer (2.14.0); fixes from three field reports (2.15.0); a date-parsing fix and the Write-tool note (2.15.1). 2.14.0 and 2.15.0 were deployed from tarballs and never published; 2.15.1 is on npm. See the 2026-09-23 and 2026-09-24 entries.
 - **Last updated**: 2026-09-24
 - **Skills (7)**: commit, coplan, evaluate, investigate, self-check, summary, think.
 - **Open work**: `docs/todo.md`. This file records what happened.
-- **Published history**: v2.10.1 … v2.13.6.
+- **Published history**: v2.10.1 … v2.13.6, then v2.15.1 (2.14.0 and 2.15.0 were deployed, never published).
 ---
 
 ## Working Context
