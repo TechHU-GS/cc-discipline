@@ -65,7 +65,7 @@ Without the hook, Claude would keep editing `auth.py` indefinitely — each fix 
 
 ---
 
-**`pre-edit-guard.sh`** — Before a source edit, checks `docs/debug-log.md` for hypotheses still marked pending, flags unusually large diffs, and reminds you to register newly created scripts. These are context notes, not blocks.
+**`pre-edit-guard.sh`** — Before a source edit, checks `docs/debug-log.md` for hypotheses still marked pending, and flags unusually large diffs. These are context notes, not blocks.
 
 > Downgraded from a hard block on 2026-07-30. Combined with the debugging rules it had become a trap: write three hypotheses into the log as the rules ask, and you were then barred from editing source until three were confirmed — including for unrelated planned work. The hypothesis discipline stays in the rules; only the enforcement was relaxed.
 
@@ -133,7 +133,7 @@ Auto-injected markdown in `.claude/rules/` — Claude sees them when operating o
 - Pre-edit checklist: understand the file, know the impact, fix root cause
 - Mole-whacking detection: recognize the pattern, stop, report
 - Phase discipline: stay in research/plan/implement, don't jump ahead
-- Multi-task gates: complete tasks in order, confirm each before moving on
+- Multi-task discipline: work in order, report done only when it is done, stop and report on failure
 - Tech stack rules for Python, JS/TS, embedded, RTL, mobile
 
 ### Subagents (the auditors)
@@ -163,14 +163,14 @@ The installer is interactive — pick your tech stack, name your project, done.
 
 ```
 .claude/
-├── rules/                    # Auto-injected when Claude operates on matching files
+├── rules/                    # Core rules load every session; stack rules load for matching files
 │   ├── 00-core-principles.md
 │   ├── 01-debugging.md
-│   ├── 02-before-edit.md
 │   ├── 03-context-mgmt.md
 │   ├── 04-no-mole-whacking.md
 │   ├── 05-phase-discipline.md
 │   ├── 06-multi-task.md
+│   ├── 07-integrity.md
 │   └── stacks/               # Picked during install
 ├── hooks/                    # Shell scripts, exit 2 = block operation
 │   ├── streak-breaker.sh
@@ -183,10 +183,13 @@ The installer is interactive — pick your tech stack, name your project, done.
 │   └── commit/SKILL.md       # /commit: test → update docs → commit
 └── settings.json             # Hook registration
 docs/
-├── progress.md               # Claude maintains this, read after compact
+├── progress.md               # What happened — Claude maintains it, read after compact
+├── todo.md                   # What's still open — Now / Later, edited by you and Claude
 └── debug-log.md              # Debug session tracking
 CLAUDE.md                     # Your project info (you fill this in)
 ```
+
+**Three record files, three jobs.** `progress.md` records what happened — status, milestones, decisions — and only grows. `todo.md` holds only what is still open: *Now* for the next steps, *Later* for deferred work, each with a condition for when to revisit it; an item is deleted once it's done. `debug-log.md` tracks hypotheses while debugging. At every session start and after each compaction, a hook injects progress.md's Current Status and todo.md's *Now* list, and counts the *Later* items.
 
 ## Customization
 
@@ -204,8 +207,8 @@ STOP_THRESHOLD=10    # Hard block after N edits
 ```bash
 cat > .claude/rules/my-rule.md << 'EOF'
 ---
-globs: "src/api/**/*"
-description: "API layer rules"
+paths:
+  - "src/api/**/*"
 ---
 - All API changes must be backwards-compatible
 - New endpoints need OpenAPI spec updates
@@ -226,7 +229,7 @@ See [Claude Code hooks docs](https://docs.anthropic.com/en/docs/claude-code/hook
 No. The hooks are the real enforcement — they're shell scripts that physically block operations. The rules are supplementary structure.
 
 **Does it slow things down?**
-No. Hooks are lightweight shell scripts, typically <100ms. Rules add ~8KB to context (~2%).
+Somewhat. Measured on Windows with Git Bash, the hooks on the edit path add about 150 ms to an edit of a docs or config file and about 650 ms to an edit of a source file. Rules add about 15 KB to context (under 2% of a 200K window), and stack rules load only when Claude reads a matching file.
 
 **Should I commit `.claude/` to git?**
 Yes. Team members get the same guardrails. Hook paths use `$CLAUDE_PROJECT_DIR`, so they work across machines.

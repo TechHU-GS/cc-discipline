@@ -6,20 +6,13 @@
 
 ## Current Status
 
-- **Shipped**: **v2.13.6**, published and rolled out to all 23 installs (2026-09-02), verified functionally rather than by file content — see below.
-- **Previous**: v2.13.5, same day, same 23 installs.
-- **Published**: **v2.13.2**, rolled out to all 22 installs. Three releases in one pass — 2.13.0 retired `/finish` and `/retro` and added `/coplan`; 2.13.1 and 2.13.2 fixed two CRLF defects that the rollout itself exposed.
-- **Fleet: 22 installs on 3 machines, all v2.13.2** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (5), techhu-7940 `techhu_dev@100.64.0.18` (7). Verified by scanning for `.claude/hooks/streak-breaker.sh`, **not** by the version file: three installs (`phenology-twin`, `soil-twin`, `vini-twin`) predate 2.0.0, carry no version file, and had been invisible to every previous rollout. The hardcoded seven-project list used since July was stale.
-- **Last updated**: 2026-08-30
-- **Skills are now 7**: commit, coplan, evaluate, investigate, self-check, summary, think.
-- **Next steps**:
-  1. **npm token rotation** — pasted in chat 2026-06-05, still not rotated. Highest severity item and the only one the user must do personally: it can publish arbitrary code under this package name, which 22 projects pull via `npx cc-discipline@latest`.
-  2. **Hook latency**: the three hooks firing on every edit total **1,267 ms** on Windows/Git Bash against the `<100ms` claimed in CLAUDE.md:12. Root cause is 65 subprocess calls at 20-30 ms each. Deliberately deferred — it refactors the parsing core of the only enforcement layer and needs its own pass with before/after numbers on both platforms.
-  3. **Pre-2.12.2 installs never retire skills.** Those upgraded straight from `<2.12.2` to 2.13.x have no manifest, so the conservative "no manifest, remove nothing" rule leaves `/finish` and `/retro` in place forever (seen on `HUB_Rev1_FW`). Fixing needs a shipped list of historical digests for the retired skills — a one-time special case, not yet decided.
-  4. **`AGENTS.md`: decided against** for these repos (2026-08-30, see the milestone at the end). It sits downstream of the sandbox gate and cannot affect write permission; the criterion is whether Codex actually modifies files, and today it only reviews. Revisit the day Codex is given `--write` to implement something.
-  5. Frozen rule bucket (`00` §6, `01-debugging`, `05-phase`, `07` §4a) still undecided — rules leave no mechanical trace, so the transcript sweep that settled the hooks cannot settle these.
-- **Published**: v2.10.1 … v2.12.3, v2.13.0 (retired /finish + /retro, added /coplan), v2.13.1 (manifest line-ending normalization), v2.13.2 (manifest file itself protected)
-
+- **Shipped**: **v2.13.6**, published and rolled out to all 23 installs (2026-09-02), verified functionally.
+- **Fleet: 25 installs on 3 machines** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (6, one of them a git worktree), techhu-7940 `techhu_dev@100.64.0.18` (9, including `esp32s31-linux-gw` and `lte-lab`, installed after the 2026-09-02 rollout; two frozen `_private-reference` copies at 2.10.x are deliberately left alone). Enumerate by the marker `.claude/hooks/streak-breaker.sh`, never by the version file.
+- **Committed, not published (2026-09-24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md` for open work, batch 1 of the fixes from Codex's whole-repo review, git-guard rebuilt as one awk parser (the 14 bypasses and the misses found since closed, ~5x faster), and `/coplan` offering to run the external review itself. **Every install still runs the old git-guard with its 14 bypasses** until the next release. See the 2026-09-23 and 2026-09-24 entries.
+- **Last updated**: 2026-09-23
+- **Skills (7)**: commit, coplan, evaluate, investigate, self-check, summary, think.
+- **Open work**: `docs/todo.md`. This file records what happened.
+- **Published history**: v2.10.1 … v2.13.6.
 ---
 
 ## Working Context
@@ -64,15 +57,17 @@ T=$(mktemp -d) && cd "$T" && git init -q &&   CC_DISCIPLINE_PKG_DIR=/e/Code/cc-d
 ### Tools & Scripts Developed
 - `bin/cli.js` — Node.js cross-platform CLI entry (2026-04-03, Windows fix)
 - `bin/cli.sh` — Original bash CLI (kept for direct bash usage)
-- `tests/git-guard-matrix.sh` — 25-case regression matrix for git-guard (2026-07-30). Must-block / must-pass / safe-commands. Run after ANY git-guard matching change; verified 25/25 on GNU sed (MS-01, 7940) and BSD sed (mac-mini). Not shipped to npm.
+- `tests/git-guard-matrix.sh` — 120-case matrix for git-guard, rebuilt 2026-09-23/24 with the awk parser; PASS means exit 0 exactly. Run after ANY git-guard change; 120/120 on MS-01 (gawk 5.0.0), mac-mini (BSD awk 20200816) and techhu-7940's WSL (gawk 5.2.1). Not shipped to npm.
+- `tests/pre-edit-guard-matrix.sh` (21 cases) and `tests/session-start-matrix.sh` (33 cases) — see CLAUDE.md Project Tools.
+- Cross-machine runs: bundle the hook and its matrix into one script (files as quoted heredocs) and pipe it to `ssh host 'bash -ls'`; nothing is copied, and the temp dir is removed afterwards.
 
 ### Environment State
 - Branch: main
-- **3 machines, 22 installs, all v2.12.3.** MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
+- **3 machines, 25 installs, all v2.13.6** (2026-09-02 rollout; two installed on techhu-7940 since). MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
   - `techhu@100.64.0.8` mac-mini-m4 — macOS, HAS jq, node at `/usr/local/bin` (use `bash -lc` over SSH or PATH is missing it), code in `~/Code`
   - `techhu_dev@100.64.0.18` techhu-7940 — Windows, node v24, code in `D:/Code`, cmd.exe shell. `bash` on PATH is only the WindowsApps WSL stub (wrong filesystem view); for Git Bash call its full path under `Program Files/Git/bin/` quoted, and note Git Bash sees the code dir as `/d/Code`.
 - Full machine details live in `techhu-devices/.claude/skills/dev-machines/SKILL.md`
-- Latest npm: 2.12.3 published (2026-07-30). macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
+- Latest npm: 2.13.6 published (2026-09-02). macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
 - macOS + Windows tested
 
 ### Gotchas Discovered
@@ -84,8 +79,8 @@ T=$(mktemp -d) && cd "$T" && git init -q &&   CC_DISCIPLINE_PKG_DIR=/e/Code/cc-d
 - **`grep '\*\.js'` matches `*.json`** — a guard against duplicate-appending `*.js` to `.gitattributes` silently did nothing. Anchor patterns like this: `grep -qE '^\*\.js[[:space:]]'`.
 - **`.md`/`.json`/`.yaml` files early-exit pre-edit-guard** (config-exempt) before the large-diff check — don't use `CLAUDE.md` to test large-diff behaviour; use an existing `.py`/`.sh`.
 - **Rules `00` and `07` carry YAML frontmatter, the other six don't.** CLAUDE.md rule injection strips frontmatter, so it is invisible when reading rules through injected context — check the file on disk before assuming a rule starts at `## `.
-- **git-guard matches command TEXT**, so any command that merely quotes a destructive git command trips it — including CLAUDE.md's own documented hook-test command. There is a narrow exemption for commands piping into `hooks/*.sh`; extend that rather than weakening the patterns.
-- **This dev box has no `jq`** (`command -v jq` → absent). That is a feature for testing: hooks can be exercised on their real Windows no-jq path directly, no sandbox needed.
+- **git-guard parses the command** (since 2026-09-23): per-command, per-git-invocation flag sets, with quoted text and heredoc bodies rescanned as code. Its hook-test exemption covers only the `echo`/`printf`/`cat` stages of a pipeline that ends in `hooks/*.sh` (a `VAR=value` prefix is fine). To write text that names destructive commands, use the Write tool; a Bash heredoc body is scanned.
+- **This dev box has no `jq`** (`command -v jq` → absent). That is a feature for testing: hooks can be exercised on their real Windows no-jq path directly, no sandbox needed. git-guard no longer uses jq at all.
 
 ---
 
@@ -549,3 +544,176 @@ The old rule was a single line: a `push` test allowing any distance to `(-f|--fo
 **Rollout of v2.13.6**: MS-01 10/10, mac-mini-m4 6/6, techhu-7940 7/7. Verified **functionally** this time, not by grepping the installed file: one install per machine was fed five payloads and its exit code checked — the recommended lease-based remedy passes, a main-branch push sharing a line with `--format` passes, a clustered short flag containing the force bit blocks, a plain force blocks, and a hard reset still blocks. 5/5 on all three machines. Content checks prove a file arrived; only this proves it decides correctly.
 
 **Two rollout mistakes, both mine, both instructive**: the loop upgraded this repository with `npx`, which cannot work inside the package that owns the name — `node bin/cli.js` is required here and is documented as such. And the remote invocation used `bash -s` instead of `bash -ls`, so no login profile was sourced, `npx` was not on PATH, and all six mac-mini installs failed at once. Both failed loudly and cost one turn each; the general rule is that a rollout script needs a login shell on the remote and an exception for the source repository itself.
+
+### 2026-09-23 — Opus 5.5 prompt audit: first half applied (uncommitted)
+
+**Trigger**: a research pass over Claude Code 2.1.280, Claude Opus 5.5 and Codex 0.156 for anything useful to this framework. Two findings applied directly: rules support path scoping, but only through the `paths:` frontmatter key (the `globs:` that `00` and `07` carried was never valid); and Anthropic's migration guidance for Opus 5 and 5.5 names several patterns these rules use. The audit followed the `prompt-audit` procedure in Claude Code's bundled `claude-api` skill.
+
+**Applied** (templates and this repository's own install):
+- **Stack rules are path-scoped.** Verified functionally with an `InstructionsLoaded` hook under `claude -p` on 2.1.280: reading `readme.md` did not load `python.md`; reading `foo.py` loaded it with reason `path_glob_match`. The invalid frontmatter in `00` and `07` was removed.
+- **Rule `02-before-edit.md` is retired.** Every item duplicated another rule or a trained default. "Record the purpose in progress.md" before every edit contradicted `03`'s milestone cadence. It was written as a per-file check ("Before modifying this file") but always loaded unconditionally; the Chinese README even described it as a source-directory rule, which it never was. `init.sh` now deletes it on upgrade, since core rules are overwritten and a dropped rule would otherwise persist in every install, and `doctor.sh` no longer expects it.
+- **`03`**: the compaction guidance, stated twice in the file, is merged into one short section. "Long sessions" (trait and anxiety framing, strategy coaching) and "Boundaries" are removed; one line of the latter told the model to avoid large tasks "when context is nearly full" while the same file said it cannot see the percentage.
+- **`06`**: "verify before marking done — paste the verification command and output" became "report done only when it is done"; the paste requirement still lives in `07` §2. "Stop and confirm after every task" is removed. "Fail fast" stays, because stopping to report a failure is exactly the user's stated preference for deciding.
+- **`07` §7.2**: raise a correction when it changes the user's code, conclusions or decisions, explicitly including any ✅ that should now be ⚠️, instead of narrating every correction. Anthropic documents over-narrated self-correction as an Opus 5 behaviour.
+- **`04`**: the fixed "PATTERN DETECTED" output template, never once used, became one line.
+- **`global/CLAUDE.md`**: "use subagents for research" is replaced. Opus 5 over-delegates, and the line contradicted `03`'s Delegation section. This does not reach existing machines through `upgrade`.
+- **Pre-existing drift fixed**: both READMEs' rule trees were incomplete (English lacked `07`, Chinese lacked `05` to `07`).
+
+Core rules went from 8 files and 17,738 characters to 7 and 14,882, a 16% cut.
+
+**Withdrawn**: rewriting `global/CLAUDE.md:33` to "make routine judgment calls yourself". It sat directly above line 34, "provide options for human to decide", which the audit had itself marked as the user's preference to keep. Codex caught it.
+
+**Held, pending evidence on Opus 5.5 rather than documentation**: `01`'s phase choreography and numeric rubric, `00` §2 and §6, `05` §5 ("plan before acting"), and `03`'s "When tasks feel overwhelming". Each has measured provenance on older models: v2.3.1's 56 wrong-approach incidents, and v2.4.0's 112-session analysis that ranked phase discipline the #2 friction source. Anthropic's "no capability regression" statement covers verification scaffolding, not these.
+
+**Review**: the plan went to Codex, read-only. The first attempt died reconnecting ("workspace routing discovery timed out") while both OpenAI endpoints answered normally seconds later; the retry ran about 16 minutes. It found the withdrawn contradiction, `self-check/SKILL.md:41`'s dependency on `01`'s four phases, a `session-start.sh` comment still citing rule 02, the README gaps, and stale lines in this file's status section. Each was confirmed before acting. Its two "cannot verify" findings were reviewability gaps rather than errors: sources outside the repository, such as a scratchpad log and Claude Code's bundled skill documents, need absolute paths and reproduction steps when the reviewer only has the repo.
+
+**Verified**: `bash -n` on `init.sh`, `lib/*.sh` and all hooks; git-guard matrix 34/34; pre-edit-guard matrix 21/21. A fresh install has 7 core rules and no 02, and `doctor` reports "3 warning(s), no critical issues", this box's documented baseline. An install built from HEAD (with 02 and without `paths:`) upgraded to the working tree loses 02, keeps a copy in `.claude/.backup-*`, gains `paths:`, and passes `doctor`. This repository's own upgrade reports "2 warning(s), no critical issues". A byte-level CR scan of 346 files, dot-directories included, found none.
+
+**Research notes worth keeping**:
+- A research subagent briefed with this project's background returned two of this project's own mechanisms, `.new` preservation and heredoc matching, as documented Claude Code behaviour with citations. Anything in a research report that matches the briefing has to be checked against the source.
+- A hook's `if` field starts the hook only when the tool arguments match a permission rule. It has no negation and holds one rule, so "every edit except `docs/`" cannot be expressed. All matching hooks run in parallel, which confirms the 2026-09-01 measurement.
+- Plugins can ship hooks, skills and agents, but not rules or `CLAUDE.md`; plugin skills are namespaced as `/name:skill`.
+- codex-plugin-cc is still 1.0.6, and the fixes for scope handling, focus text and the rescue write default sit in unmerged PRs (#523, #646, #742). `/codex:adversarial-review` is hardcoded read-only and accepts focus text (`executeReviewRun`, `codex-companion.mjs:414`).
+
+**Own slips**: Python on this box writes stdout as GBK and crashed printing ✅ halfway through the edit script. File writes are UTF-8 and were unaffected; the remaining steps ran with `PYTHONIOENCODING=utf-8`. A first CR scan used `glob`, which skips dot-directories, and covered 20 files instead of 346.
+
+### 2026-09-23 — docs/todo.md: open work gets its own file
+
+**Why**: the framework gave open work no home. The template's Current Status had a single `Next steps: [none]` line, and three places told the model to put task status in progress.md (`03`'s checkpoints, `06` §5, `/self-check`). progress.md is an append-mostly log, while a to-do list is edited in place. Mixing them meant finished items lingered, new ones got buried, and nothing surfaced them; this repository's own "Next steps" list sat stale for over three weeks. The user raised it as a daily friction: short- and long-term to-dos mixed into progress.md.
+
+**What**: a new `docs/todo.md` with two sections. *Now* holds the next concrete steps; *Later* holds deferred work, each item with when or under what condition to revisit it. Items are deleted when done — progress.md records what happened, and git history keeps the old list. Claude adds items when asked to note something and whenever it defers work itself. Both conventions were the user's call.
+
+**The session-start hook was the other half of the fix.** It injected `tail -20 docs/progress.md`, the end of whichever section happened to be last — in practice the Rule Ledger or the tail of the newest milestone — and never the status or the open work. It now injects progress.md's Current Status, todo.md's *Now* list (capped at 20 lines), and a count of open *Later* items. It strips CR, drops HTML comments, matches headings case-insensitively, and falls back to the old tail when progress.md has no Current Status heading. New `tests/session-start-matrix.sh`, 25 cases; the old hook fails 14 of them, which shows the matrix discriminates.
+
+**Also changed**: `03` and `06` point open work to todo.md, and `06` §7 files deferred work under *Later* with a revisit condition. `/self-check` gains §5c (prune done items, file deferrals, check revisit conditions, move strays out of progress.md) and reports open work in its status line; a *Later* item whose condition has been met is raised with the user, not acted on. `/summary` and `/commit` include todo.md; the progress template drops "Next steps"; both READMEs, the project CLAUDE.md template and `global/CLAUDE.md` describe the three record files. `init.sh` creates todo.md only when it is missing, and `doctor` checks for it.
+
+**Verified**: bash syntax; git-guard 34/34, pre-edit-guard 21/21, session-start 25/25. A fresh install creates todo.md, and `doctor` reports "✓ docs/todo.md" with the box's usual 3 warnings. Upgrading an install built from HEAD creates todo.md and leaves progress.md byte-identical; upgrading again over a hand-written todo.md leaves it byte-identical and injects its *Now* list at session start.
+
+**This repository**: its open items moved from progress.md's Current Status into `docs/todo.md`. Its customised `/self-check` was merged by hand from the new template (a `.new` was written, as designed), and its project-specific checks were brought up to date: the git-guard count said 25 instead of 34, and `pre-edit-guard-matrix.sh` had never been registered there.
+
+**Own slip**: the first edit script failed at bash's parse stage because it was passed inline through `bash -c` with single quotes, `$` and backticks nested inside it. Nothing had been written; it was rerun from a file.
+
+### 2026-09-23 — Codex whole-repo review: 20 findings, all confirmed; the mechanical half fixed
+
+**Review**: Codex, read-only in a fresh thread, reviewed the whole repository including uncommitted work in about 17 minutes and returned 20 findings. Every one was checked before acting: git-guard payloads fed to the hook, upgrade paths reproduced, and installed `settings.json` files inspected on all three machines. All 20 held, with two nuances. The conflict between rule `03` and `/investigate` bites only in review mode, when the proposal under review is Claude's own. And the missing git-guard registration (#8) is real in the code but has no victim on MS-01, where all ten installs register it once.
+
+**Worst finding, not yet fixed — git-guard lets 14 destructive forms through**: a hook path anywhere in the command exempts the whole command; `$(...)` or backticks inside a blanked `-m` message run unseen; `checkout -f`; `restore --worktree`, plus a `--staged` exclusion that spans the whole compound command; `clean -d -f`, `clean --force -d`, `branch --delete --force`; any git global option before the subcommand (`-C`, `--git-dir`, `--work-tree`); `push -f` to an implicit upstream, `push origin +main`, and a force push followed by a second push in the same command. That last one is a regression from 2026-09-02: the push segment is extracted with a greedy `sed`, which keeps only the final `git push`. All of these are live in every install. Patching single regexes has reached its limit, so this goes to `/think` rather than a quick fix.
+
+**Found live in the field**: the jq settings merger's list of framework hooks omitted git-guard, so every jq upgrade kept the old git-guard entry and appended another. mac-mini installs carried 11, 9 and 9 registrations, and techhu-7940's `techhu-devices` carried 2, so git-guard ran up to eleven times in parallel on every Bash call.
+
+**Fixed (batch 1)**:
+- `init.sh`: the merger now lists git-guard. The next jq upgrade drops every old entry and adds one back — verified on macOS by planting four and upgrading to one. Upgrades now refresh every stack already installed. Before, `upgrade` (whose `--auto` defaults the stack to "none") and an interactive "Enter to keep current" copied no stack file, so the `paths:` change would have reached no existing install. Rule 02 is deleted only in upgrade mode; in append mode a file by that name is the user's own.
+- `lib/doctor.sh`: checks every hook's registration without jq (the check was only ever a text search), and exits 1 on critical issues.
+- `bin/cli.js`: exits non-zero when bash cannot be started or is killed by a signal, instead of mapping `status: null` to success.
+- `session-start.sh` — three bugs in code written earlier the same day: an empty Current Status fell back to injecting the end of the file, more than 15 status lines were cut without a word, and a heading inside an HTML comment ended a section early. Comment state is now tracked on every line before any heading test.
+- `tests/git-guard-matrix.sh` defaults to a repo-relative path instead of this machine's absolute one, so it runs on the other machines.
+- Rule `03`: an explicitly invoked skill that delegates by design, such as `/investigate`, takes precedence over "never delegate verification".
+- Both READMEs: the custom-rule example used the invalid `globs:` key, and both claimed hooks run under 100 ms. The English one also still described the removed new-script reminder and a per-task confirmation step.
+
+**Verified**: on Windows Git Bash — syntax, including `node --check`; git-guard 34/34 with no path argument; pre-edit-guard 21/21; session-start 33/33, where the hook as it stood before today fails 20. A real `upgrade` of a python-stack install gains `paths:`; a project missing git-guard's registration makes `doctor` report it and exit 1; a user's own `02-before-edit.md` survives append mode while the framework's copy is removed on upgrade. On macOS (bash 3.2, BSD awk 20200816, jq 1.7.1), all three matrices pass and the planted duplicate registrations heal to one. This box's `doctor` baseline is now 2 warnings, not 3: the "cannot verify hook registration without jq" warning no longer applies.
+
+**Fleet correction**: techhu-7940 has nine active installs, not seven. `esp32s31-linux-gw` and `lte-lab` appeared after the 2026-09-02 rollout, both at 2.13.6, so the fleet is 25.
+
+**Deferred on purpose**: `init.sh` still has no explicit error handling for its `cp` and `rm` steps on Windows, where `set -e` is off, so a partial failure can still write the new version marker. That gets its own change.
+
+### 2026-09-23 — git-guard rebuilt as one awk parser: the 14 bypasses closed, 5× faster
+
+**Why a rewrite, not patches**: the 14 bypasses from the whole-repo review had four causes, and every one came from matching the command as a single string, one regex per rule:
+- **whole-string scope**: the hook-path exemption, the `--staged` exclusion and the greedy push `sed` all looked at the entire command;
+- **adjacency**: every pattern needed `git` next to its subcommand, with flags in one fixed order and spelling;
+- **message blanking**: the blanking step also hid `$(...)` and backticks, which execute;
+- **push-target inference**: the branch test needed `main` or `master` to appear in the text.
+
+The user chose approach B out of three: patch each regex, one awk parser, or a Node rewrite. Node was rejected because a hook that cannot find `node` errors, and an error does not block. Scope: exactly the 14. A `push -f` with no refspec is always blocked.
+
+**Design** (`templates/.claude/hooks/git-guard.sh`), a bash wrapper around one awk program:
+- **Payload:** a depth-tracking JSON walk reads the top-level `tool_name` and `tool_input.command`, the same paths jq reads. jq is no longer used at all, so every machine runs one code path.
+- **Substitutions:** every `$(...)` and backtick span is lifted out and queued as its own work item. The one exception is Claude Code's `-m "$(cat <<'EOF' … EOF)"` commit message with a quoted delimiter: it is data.
+- **Tokenizer:** bash quoting rules; commands split at `; && || | & ( )` and newlines; redirections and their targets dropped. Quoted text is queued too, which covers `bash -c`, `eval` and `ssh`, except the argument of `-m`, `--message`, `-F` or `--file`. Heredoc bodies are cut out whole and queued as code.
+- **Judging:** each git invocation skips global options to find its subcommand, then judges the set of flags, so order and spelling no longer matter.
+- **Hook-test exemption:** now covers only the `echo`/`printf`/`cat` stages of a pipeline that ends in `hooks/*.sh`.
+- **Failure handling:** awk prints exactly one verdict line. Anything else falls back to a coarse text check that blocks on git plus a guarded subcommand.
+
+**Review before code**: `/coplan`, then Codex in a fresh read-only thread.
+- A1, A2 and A4 held.
+- For A3, Codex could not say whether the list of global options that take a separate value was complete. Running each one before `rev-parse` on git 2.50.1 found `--attr-source`, which the plan's list had missed.
+- Two findings, both confirmed:
+  - The plan's "first `command` key" could be shadowed by an earlier object's key; fixed with path-exact extraction.
+  - The matrix counted every exit code except 2 as PASS. Proof: a stub hook that always exits 1 passed all 16 PASS cases. A crash therefore looked like a pass, and in Claude Code a crash lets the command run.
+
+**Tests first**: `tests/git-guard-matrix.sh` went from 34 cases to 83, and now only exit 0 counts as PASS. Payloads are built by an awk JSON escaper, so multi-line commands can be expressed. Against the pre-rewrite hook, the new matrix:
+- passes all 34 old cases;
+- fails all 14 bypasses;
+- fails 10 more parser-detail cases. These were live misses too: backslash line continuation, `push -f 2>&1`, a command after the commit heredoc inside the substitution, an unquoted heredoc delimiter, a quoted `-C` path, `--attr-source`, `branch -df`, and others;
+- falsely blocks 2 PASS cases: a heredoc message containing `"`, and the jq-less sed fallback scanning the `description` field.
+
+**Verified**:
+- **Matrix, 83/83 on three awks:** MS-01 (gawk 5.0.0, no jq), mac-mini (BSD awk 20200816, bash 3.2) and techhu-7940 (gawk 5.2.1). On macOS, the PASS cases that mention `reset --hard` show that the awk verdict decided them, not the coarse fallback.
+- **Installed copy:** synced and at 83/83.
+- **Other matrices:** pre-edit-guard 21/21, session-start 33/33.
+- **Live guard in this repo:** the CLAUDE.md hook self-test command passes the live guard, and the inner call blocks with rc=2.
+- **Smoke test:** all seven hooks exit 0 on an Edit payload.
+- **Latency, 10-run averages:**
+
+  | Machine | Before | After |
+  |---|---|---|
+  | MS-01 | 885–950 ms | ~190 ms |
+  | mac-mini | not measured | ~10 ms |
+  | techhu-7940 | not measured | ~20 ms |
+
+  On the Bash path, `action-counter` (~350 ms) is now the slowest hook.
+- **gawk `--lint`:** reported only uninitialized-variable warnings, since removed by initializing in `BEGIN`.
+
+**Still open**: nothing is published, so every install stays exposed until the next release. Deliberately left out of this change, and recorded in todo.md Later:
+- the PowerShell tool;
+- same-class gaps such as `switch -f` and `checkout <commit> <path>`;
+- `push -f origin HEAD`.
+
+### 2026-09-24 — git-guard code review: 3 more misses, 2 false positives, and a quadratic slowdown on macOS
+
+**The review.** The user chose a Codex code review before committing. It ran in a fresh read-only thread, took 22 minutes, and returned 11 findings:
+- 5 reproducible cases;
+- 6 gaps in the test matrix.
+
+All 5 cases reproduced here. **The pre-rewrite hook behaves identically on every one**, so these are gaps the rewrite did not close, not regressions it introduced.
+
+**Misses:**
+- **`git commit -m "$(printf '1) update'; git reset --hard)"`**
+  - Cause: substitution matching ignores quotes on purpose, so the `)` inside `'1)'` ended the `$(...)` early. The leftover `; git reset --hard` landed inside the `-m` argument, which is never scanned.
+  - This disproves a claim in the plan and in the hook's comment: that because every character still lands in either the outer string or the queue, a mismatch "can only cause a false positive". The leftover can also land in a message argument or an exempt hook-test stage, and neither is scanned.
+  - Fix: a word that holds the `SUBST` placeholder has its quoted text queued even in those two places (`queue_lifted`).
+- **`git push -f -o ci.skip origin`**
+  - Cause: `-o` takes a value, so `ci.skip` was read as the remote and `origin` as a refspec, which defeated the no-refspec rule.
+  - Fix: `-o`, `--push-option`, `--repo`, `--receive-pack` and `--exec` now consume their value, and a value-taking letter ends its short cluster.
+- **`git push -f4 origin main`**
+  - Cause: the cluster regex allowed letters only, so `-f4` was never split.
+  - Fix: digits are now allowed.
+
+**False positives:**
+- **Comments were scanned as code**, so `git status # do not run git reset --hard` was blocked. An unquoted `#` at the start of a word now runs to the end of the line, as in bash.
+- **A backslash-newline between `-m` and the commit heredoc** was not recognised as message position. The pattern now allows it.
+
+**Found while dogfooding.**
+- My own test command `printf … | PATH=… bash templates/.claude/hooks/git-guard.sh` was blocked by the live guard. The `VAR=value` prefix hid the hook-test pipeline.
+- Fix: `is_hook_stage` now skips assignments.
+
+**Found while timing.** Codex had asked about slow inputs, so long commands were timed on both platforms.
+- **The problem:** on macOS, a 200 KB `cat > f <<'EOF'` whose body mentions git took **9.1 s**, and a 1 MB one took **156 s** — past any hook timeout. A timed-out hook lets the command run.
+- **Cause, measured:** BSD awk's `substr()` costs time in proportion to the whole string. 200,000 calls take 37 ms on a 2 KB string and 636 ms on a 200 KB one; gawk takes 188 ms and 207 ms.
+- **Fix 1 — append ranges instead of characters,** and walk lines with a scan instead of `index(substr(...))`. This halved gawk's times: 3.3 s to 1.4 s at 200 KB on MS-01. BSD awk did not improve.
+- **Fix 2 — payloads over 64 KB skip the parser** and go to the coarse check. Its block message says the command was too long to parse and points to the Write tool.
+- **Result:** the macOS worst case is now 0.55 s at 1 MB. On MS-01, 1 MB takes 2.3–3.1 s, including piped stdin, and grows linearly. Short commands are unchanged at ~190 ms.
+
+**Matrix: 83 → 120 cases.** New coverage:
+- the 5 reproductions;
+- `||`, `&` and `|&`;
+- `-c`, `--namespace` and `--config-env`;
+- separate-form `--git-dir`/`--work-tree`;
+- `git.exe`, a quoted Windows path and mixed-case `Git`;
+- the `"EOF"`, `\EOF` and `<<-` delimiters;
+- the attached forms `-mX`, `--message=`, `-FX` and `--file=`;
+- **the fallback path itself**, using a stand-in `awk` on PATH that prints nothing and exits 1. The block message confirms that path was taken: "could not parse";
+- work-queue overflow;
+- payloads over 64 KB, both ways.
+
+**Verified:** 120/120 on MS-01 (gawk 5.0.0, no jq), mac-mini (BSD awk 20200816, bash 3.2) and techhu-7940 (gawk 5.2.1). Latency for a short command: ~190 ms, 11 ms and 19 ms. The installed copy is synced and passes too. CLAUDE.md has a new Cross-platform pitfall on BSD awk's `substr()`.

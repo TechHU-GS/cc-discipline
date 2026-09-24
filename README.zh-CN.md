@@ -25,7 +25,6 @@
 │  Layer 1: Rules（自动注入）             │
 │  core-principles — 核心原则            │
 │  debugging — 调试纪律                  │
-│  before-edit — 修改前检查              │
 │  context-mgmt — 上下文管理             │
 │  no-mole-whacking — 反打地鼠           │
 │  stacks/* — 技术栈特有规则             │
@@ -73,9 +72,11 @@ your-project/
 │   ├── rules/
 │   │   ├── 00-core-principles.md      # 核心工作原则
 │   │   ├── 01-debugging.md            # 调试纪律
-│   │   ├── 02-before-edit.md          # 修改前检查
 │   │   ├── 03-context-mgmt.md         # 上下文管理
 │   │   ├── 04-no-mole-whacking.md     # 反打地鼠
+│   │   ├── 05-phase-discipline.md     # 阶段纪律
+│   │   ├── 06-multi-task.md           # 多任务纪律
+│   │   ├── 07-integrity.md            # 诚信纪律
 │   │   └── stacks/                    # 技术栈特有规则
 │   │       ├── rtl.md                 #   RTL / IC 设计
 │   │       ├── embedded.md            #   嵌入式 C/C++
@@ -92,11 +93,14 @@ your-project/
 │   └── skills/
 │       └── commit/SKILL.md            # /commit 智能提交
 ├── docs/
-│   ├── progress.md                    # 进度记录（Claude 维护）
+│   ├── progress.md                    # 进度记录：已经发生的事（Claude 维护）
+│   ├── todo.md                        # 待办：Now / Later（你和 Claude 都可以改）
 │   └── debug-log.md                   # 调试日志（Claude 维护）
 └── ~/.claude/
     └── CLAUDE.md                      # 全局通用纪律（可选）
 ```
+
+**三个记录文件，各管一件事**：`progress.md` 记录已经发生的事（状态、里程碑、决策），只增不减；`todo.md` 只放还没做的事——*Now* 是接下来的具体步骤，*Later* 是推迟的工作，每条都写明什么时候、什么条件下再看，做完就删；`debug-log.md` 记录调试中的假设。每次开会话和每次压缩上下文之后，hook 会注入 progress.md 的 Current Status 和 todo.md 的 *Now* 列表，并报出 *Later* 的条数。
 
 ## 各层详解
 
@@ -109,10 +113,7 @@ Claude 无法选择性忽略这些规则——它们在操作匹配文件时会�
 - `00-core-principles.md` — 先理解再动手、不锁定第一解释、连续3次失败必须停下
 - `01-debugging.md` — 四阶段调试流程（收集→假设→验证→修复）
 - `03-context-mgmt.md` — 主动检查点、调研隔离、compact 策略
-- `04-no-mole-whacking.md` — 打地鼠检测和汇报模板
-
-**源码规则**（编辑 src/ 等目录时生效）：
-- `02-before-edit.md` — 修改前的 5 项强制检查
+- `04-no-mole-whacking.md` — 打地鼠检测
 
 **技术栈规则**（按文件类型触发）：
 - `.v/.sv/.vhd` → RTL 规则（时序意识、CDC 检查、综合/仿真区分）
@@ -251,8 +252,8 @@ Claude: 先别急着改。测试期望 200 但拿到了 401。
 # Create a new rule
 cat > .claude/rules/my-rule.md << 'EOF'
 ---
-globs: "src/api/**/*"
-description: "API 层特有规则"
+paths:
+  - "src/api/**/*"
 ---
 ## API 修改规则
 - 所有 API 变更必须向后兼容
@@ -289,7 +290,7 @@ EOF
 A: CLAUDE.md 在对话开始时读取一次。Rules 是按文件路径匹配自动注入的——当 Claude 操作匹配 glob 的文件时，对应规则会自动出现在它的上下文中。Rules 更可靠，因为它们不依赖 Claude "记得去看"。
 
 **Q: Hooks 会影响性能吗？**  
-A: 几乎不会。它们是轻量的 shell 脚本，执行时间通常 <100ms。
+A: 有一些。在 Windows 的 Git Bash 下实测：编辑文档或配置文件时，每次编辑约增加 150 ms；编辑源码文件约增加 650 ms。规则约占 15 KB 上下文（不到 200K 窗口的 2%），技术栈规则只在读到对应文件时才加载。
 
 **Q: 可以把 .claude/ 提交到 git 吗？**  
 A: 强烈建议提交。这样团队成员都能共享同一套纪律。注意 `.claude/settings.json` 中的 hooks 路径是相对路径，团队成员不需要额外配置。

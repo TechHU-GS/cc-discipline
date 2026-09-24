@@ -60,7 +60,14 @@ Pause and honestly answer every question below.
 - **Gotchas** — what went wrong or was surprising
 - **Verification** — how it was confirmed working (test output, manual check)
 
-If any of the above are stale or incomplete: **update docs/progress.md now, automatically — don't ask for permission.** Keeping progress.md current is always-correct maintenance, not a decision that needs sign-off. Just do it, then note "updated now" in the status line. This takes 2 minutes and saves hours of re-discovery after compact.
+### 5c. Open work (`docs/todo.md`):
+- **Now** — anything already done? Delete it. Are the next steps of the current work listed?
+- **Deferred this session?** Anything I put off belongs under *Later*, with when or under what condition to revisit it.
+- **Later** — does every item have a revisit condition? Has any condition been met?
+- **Strays** — is open work still sitting in progress.md (an old "Next steps" line, a TODO inside a milestone)? Move it to todo.md.
+- No `docs/todo.md` yet (an older install)? Create it with a `## Now` and a `## Later` section.
+
+If any of the above are stale or incomplete: **update docs/progress.md and docs/todo.md now, automatically — don't ask for permission.** Keeping them current is always-correct maintenance, not a decision that needs sign-off. Just do it, then note "updated now" in the status line. This takes 2 minutes and saves hours of re-discovery after compact. The one exception is a *Later* item whose revisit condition has been met: raise it with the user rather than acting on it.
 
 ## 6. Am I using the project's scaffolding?
 
@@ -84,9 +91,11 @@ Examples:
 Keep this list curated — remove tools that are obsolete.
 -->
 
-- `T=$(mktemp -d); cd "$T" && git init -q && CC_DISCIPLINE_PKG_DIR=<repo> node <repo>/bin/cli.js init --auto --stack 7` then `bash <repo>/lib/status.sh` & `lib/doctor.sh` — run after touching init.sh / lib/status.sh / lib/doctor.sh, or after adding/removing a skill; confirms a fresh install actually copies everything and status/doctor see it (catches the "edited templates but forgot the install script" class of bug). Works with jq absent. **Go through `cli.js`, not `bash init.sh` directly**: cli.js passes the version via env var, whereas init.sh's own `node -p require(<posix path>)` fallback fails on Windows, so a direct run reports `Version: unknown` and looks like a regression that isn't one. Expect exactly 3 doctor warnings on this box (2× jq absent, 1× template `[TODO]`) — more than that means something changed.
+- `T=$(mktemp -d); cd "$T" && git init -q && CC_DISCIPLINE_PKG_DIR=<repo> node <repo>/bin/cli.js init --auto --stack 7` then `bash <repo>/lib/status.sh` & `lib/doctor.sh` — run after touching init.sh / lib/status.sh / lib/doctor.sh, or after adding/removing a skill; confirms a fresh install actually copies everything and status/doctor see it (catches the "edited templates but forgot the install script" class of bug). Works with jq absent. **Go through `cli.js`, not `bash init.sh` directly**: cli.js passes the version via env var, whereas init.sh's own `node -p require(<posix path>)` fallback fails on Windows, so a direct run reports `Version: unknown` and looks like a regression that isn't one. Expect exactly 2 doctor warnings on this box (jq absent, and the template's `[TODO]`) — more than that means something changed.
 - `for h in templates/.claude/hooks/*.sh; do echo '{"session_id":"t","tool_name":"Edit","tool_input":{"file_path":"x.sh"}}' | bash "$h"; done` — smoke-test hooks after editing them; confirms valid output and no jq-only breakage on Windows.
-- `bash tests/git-guard-matrix.sh` — **run after ANY change to git-guard matching.** 25 cases; a miss there loses uncommitted work and is unrecoverable, so this is the one check that must never be skipped. Also run it against the installed copy: `bash tests/git-guard-matrix.sh .claude/hooks/git-guard.sh`.
+- `bash tests/git-guard-matrix.sh` — **run after ANY change to git-guard.** 120 cases; a miss there loses uncommitted work and is unrecoverable, so this is the one check that must never be skipped. Also run it against the installed copy: `bash tests/git-guard-matrix.sh .claude/hooks/git-guard.sh`.
+- `bash tests/pre-edit-guard-matrix.sh` — run after ANY change to pre-edit-guard's exemption patterns. 21 cases, including the near-misses that must stay non-exempt (`docsite/`, `mydocs/`, `documentation.py`, `.markdown`); glob and ERE are different engines.
+- `bash tests/session-start-matrix.sh` — run after ANY change to session-start.sh. 33 cases over what it injects from progress.md and todo.md, including CRLF files and a progress.md with no Current Status heading.
 - `grep -n 'jq -r' templates/.claude/hooks/*.sh` — every hit must sit inside a `command -v jq` branch that has an `else`. Five jq-only reads shipped broken before this was checked; git-guard's made the whole guard dead code on Windows.
 
 ## 7. Did the rules change anything this time?
@@ -113,13 +122,14 @@ Current action: [what I'm doing now]
 On track: yes/no/drifted
 Progressing: yes/circling
 Progress recorded: yes/updated now/no
+Open work: [Now n · Later m · due: items, or none]
 Scaffolding: [used/skipped/n/a]
 Ledger: [save / friction appended, or "none"]
 Going well: [one thing]
 Issues found: [list, or "none"]
 ```
 
-If any issues were found, pause and report to the user before continuing. (Routine progress.md updates from §5 don't count as "issues" — you already made them silently; just report "updated now". Reserve the pause for alignment, rigor, or scope problems that genuinely need the user.)
+If any issues were found, pause and report to the user before continuing. (Routine progress.md and todo.md updates from §5 don't count as "issues" — you already made them silently; just report "updated now". A *Later* item that has come due does: mention it. Reserve the pause for alignment, rigor, or scope problems that genuinely need the user.)
 
 ## Reminder
 
