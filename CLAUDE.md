@@ -173,9 +173,10 @@ Four separate failures in one session came from this family. Prefer Python with 
 
 ### Rollout
 
-- **Enumerate installs by the marker `.claude/hooks/streak-breaker.sh`, never by the version file.** The oldest installs have no version file at all, so a version-based inventory is structurally blind to exactly the ones most in need of upgrading.
+- **Enumerate installs by the marker `.claude/hooks/streak-breaker.sh`, never by the version file, and search deep (`find -maxdepth 6`).** The oldest installs have no version file at all, so a version-based inventory is structurally blind to exactly the ones most in need of upgrading. Nested installs exist too: two under mac-mini's `GS_IC/designs/` sat on 2.6.1 through every rollout until 2026-09-24.
 - **Remote rollout needs a LOGIN shell**: `ssh host 'bash -ls -- <args>' < script.sh`. Without `-l` no profile is sourced and `npx` is not on PATH — six installs failed together this way.
 - **`npx` inside `find | while read` eats the loop's stdin.** Collect the list into a variable and iterate with `for`, or redirect the command's stdin from `/dev/null`.
+- **To deploy an unpublished version, `npm pack` and install from the tarball with `npx -y --package=<tgz> cc-discipline upgrade`.** A bare Windows path — `npx -y C:/…/cc-discipline-X.tgz upgrade` — exits 0 and does nothing; `file:<tgz>` also works. Rehearse on a throwaway 2.x project on each machine first, then read the version marker afterwards.
 - **Verify functionally, not by file content.** Grepping the installed file proves it arrived; feeding a guard payloads and checking exit codes proves it decides correctly.
 
 ### Skills

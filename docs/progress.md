@@ -6,9 +6,9 @@
 
 ## Current Status
 
-- **Shipped**: **v2.13.6**, published and rolled out to all 23 installs (2026-09-02), verified functionally.
-- **Fleet: 25 installs on 3 machines** — MS-01 (10), mac-mini-m4 `techhu@100.64.0.8` (6, one of them a git worktree), techhu-7940 `techhu_dev@100.64.0.18` (9, including `esp32s31-linux-gw` and `lte-lab`, installed after the 2026-09-02 rollout; two frozen `_private-reference` copies at 2.10.x are deliberately left alone). Enumerate by the marker `.claude/hooks/streak-breaker.sh`, never by the version file.
-- **Committed, not published (2026-09-24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md` for open work, batch 1 of the fixes from Codex's whole-repo review, git-guard rebuilt as one awk parser (the 14 bypasses and the misses found since closed, ~5x faster), and `/coplan` offering to run the external review itself. **Every install still runs the old git-guard with its 14 bypasses** until the next release. See the 2026-09-23 and 2026-09-24 entries.
+- **Shipped**: **v2.14.0 deployed** to all 25 installs from a local tarball (2026-09-24), verified functionally. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
+- **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
+- **2.14.0 (2026-09-24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md` for open work, batch 1 of the fixes from Codex's whole-repo review, git-guard rebuilt as one awk parser, and `/coplan` offering to run the external review. Committed and deployed; unpushed to GitHub and unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
 - **Last updated**: 2026-09-23
 - **Skills (7)**: commit, coplan, evaluate, investigate, self-check, summary, think.
 - **Open work**: `docs/todo.md`. This file records what happened.
@@ -63,11 +63,11 @@ T=$(mktemp -d) && cd "$T" && git init -q &&   CC_DISCIPLINE_PKG_DIR=/e/Code/cc-d
 
 ### Environment State
 - Branch: main
-- **3 machines, 25 installs, all v2.13.6** (2026-09-02 rollout; two installed on techhu-7940 since). MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
+- **3 machines, 26 active installs, all v2.14.0** (2026-09-24, from a tarball; npm still serves 2.13.6). MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
   - `techhu@100.64.0.8` mac-mini-m4 — macOS, HAS jq, node at `/usr/local/bin` (use `bash -lc` over SSH or PATH is missing it), code in `~/Code`
   - `techhu_dev@100.64.0.18` techhu-7940 — Windows, node v24, code in `D:/Code`, cmd.exe shell. `bash` on PATH is only the WindowsApps WSL stub (wrong filesystem view); for Git Bash call its full path under `Program Files/Git/bin/` quoted, and note Git Bash sees the code dir as `/d/Code`.
 - Full machine details live in `techhu-devices/.claude/skills/dev-machines/SKILL.md`
-- Latest npm: 2.13.6 published (2026-09-02). macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
+- Latest npm: 2.13.6 (2026-09-02); installs run 2.14.0 from a tarball (2026-09-24). macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
 - macOS + Windows tested
 
 ### Gotchas Discovered
@@ -717,3 +717,38 @@ All 5 cases reproduced here. **The pre-rewrite hook behaves identically on every
 - payloads over 64 KB, both ways.
 
 **Verified:** 120/120 on MS-01 (gawk 5.0.0, no jq), mac-mini (BSD awk 20200816, bash 3.2) and techhu-7940 (gawk 5.2.1). Latency for a short command: ~190 ms, 11 ms and 19 ms. The installed copy is synced and passes too. CLAUDE.md has a new Cross-platform pitfall on BSD awk's `substr()`.
+
+### 2026-09-24 — v2.14.0 deployed to all 25 installs from a local tarball, not published to npm
+
+**How.** The user chose not to publish yet, because the npm token rotation comes first.
+- **Package:** `package.json` went to 2.14.0 (`8004e36`), and `npm pack` produced `cc-discipline-2.14.0.tgz` (45 files, no CR, no `tests/`, no rule 02).
+- **Copies:** the tarball was copied to mac-mini `/tmp` and to techhu-7940's home directory. The sha256 was the same on all three machines.
+- **Install command:** each install was upgraded with `npx -y --package=<tgz> cc-discipline upgrade`.
+
+**Rehearsed first on each machine.** Each rehearsal took a temp project on 2.13.6 from the registry and upgraded it from the tarball. Afterwards:
+- the version marker read 2.14.0;
+- rule 02 was gone and `docs/todo.md` existed;
+- the python stack rule carried `paths:`;
+- git-guard blocked `git -C repo reset --hard` and `git push -f`, and passed a heredoc commit message;
+- doctor reported no critical issues.
+
+**The first rehearsal found a silent no-op.** `npx -y C:/…/cc-discipline-2.14.0.tgz upgrade` exits 0 and does nothing: the version stayed 2.13.6 and git-guard stayed old. `--package=<tgz> cc-discipline` and `file:<tgz>` both run v2.14.0. This is recorded in CLAUDE.md → Release.
+
+**Result: 25/25**
+- **Machines:** MS-01 9, mac-mini 7, techhu-7940 9.
+- **Every install:** marker 2.14.0, upgrade exit 0, and an installed git-guard that blocked both destructive payloads and passed the heredoc message.
+- **Skipped on purpose:** this repo, which is synced by hand, and the two frozen `_private-reference` copies on techhu-7940.
+- **Changes left uncommitted** in every repository, as the user chose.
+
+**Two old installs no rollout had reached.** mac-mini `~/Code/GS_IC/designs/analog-trial` and `soilz_sky130` were still on **2.6.1**. They sit three levels deep, and the marker search this time used `-maxdepth 6`. Both upgraded cleanly. They have no manifest, so four modified skills in each were kept, with the template written beside as `.new`.
+
+**Duplicate git-guard registrations.**
+- **mac-mini:** gone. gs-perception, gem_flutter_mobile and its worktree carried 11, 9 and 9 registrations; each now has 1. This is the jq merge fix verified on real installs.
+- **techhu-7940 `techhu-devices`:** still 2. Git Bash on that machine has no jq, and a jq-less upgrade never touches `settings.json`.
+
+**Conffiles kept.** `self-check/SKILL.md.new` now sits in most installs, and `think/SKILL.md.new` in several: those projects had edited these skills. The new self-check template, which adds todo.md support, has to be merged by hand in each.
+
+**Fleet.**
+- **26 active installs:** 25 upgraded, plus this repo.
+- **2 frozen copies**, left alone on purpose.
+- **Not installed:** gsus-pipeline and frost-twin (MS-01), and smpp-notif-gateway and gmp-platform (mac-mini). All four were active recently and have their own CLAUDE.md and `.claude/`; the user decided not to install there this time.
