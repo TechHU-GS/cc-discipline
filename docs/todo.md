@@ -5,8 +5,7 @@
 
 ## Now
 
-- [ ] Roll out 2.15.1 (the date fix, "last updated" precedence, the Write-tool note) to the approved 25: re-inventory first, skip detached worktrees, ask about anything new. `HUB_Rev1_FW_wt_head` is a disposable worktree the HUB session will remove itself once told it is fine to (nothing of ours there needs keeping)
-- [ ] Publish 2.15.0 to npm once the token is rotated: until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one
+- [ ] Publish 2.15.1 to npm once the token is rotated: until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one
 
 ## Later
 

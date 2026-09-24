@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- **Shipped**: **v2.15.0 deployed** to every install from a local tarball (2026-09-24), verified functionally; pushed to GitHub. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
+- **Shipped**: **v2.15.1 deployed** to every install from a local tarball (2026-09-24), verified functionally; pushed to GitHub. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
 - **2.15.0 (2026-09-24)**: 2.14.0 (the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, `/coplan`'s review offer), plus the fixes from three field reports. Committed, pushed and deployed; unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
 - **Last updated**: 2026-09-24
@@ -914,3 +914,9 @@ This repo's installed copies are synced and pass too.
   - **Its self-check merge plan** missed §5's changed closing paragraph, which now also covers todo.md and raises due Later items.
 
 **Matrices:** git-guard 153/153 (four cases check the note), session-start 61/61 (four date cases, all failing on 2.15.0).
+
+**Rolled out the same day.**
+- **Package and rehearsal:** the 2.15.1 tarball (sha256 `10deca0e…`) was rehearsed 2.15.0 → 2.15.1 on all three machines.
+- **The approved-list rule, first use:** the rollout script now takes the approved list, skips anything else and any detached linked worktree, and names both. It left `HUB_Rev1_FW_wt_head` alone.
+- **Result:** 25/25 approved installs are on 2.15.1, each passing the five guard payloads, with git-guard registered once.
+- **In the reporting projects:** mac-mini's ziiqii-geosense (status updated 2026-09-24) is no longer flagged; MS-01's older clone of it (2026-05-18) correctly is. HUB_Rev1_FW is still flagged from its heading date until it adds a "最后更新" line.
