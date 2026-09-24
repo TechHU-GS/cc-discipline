@@ -5,6 +5,7 @@
 
 ## Now
 
+- [ ] Release 2.15.2 (the LC_ALL=C fix for macOS under a UTF-8 locale): rehearse and roll out to the approved 25 with `tools/`, then the user publishes to npm from their own terminal. Tell ziiqii-geosense it is fixed.
 - [ ] Pass on the two replies drafted on 2026-09-24 to the HUB_Rev1_FW session (techhu-7940) and the ziiqii-geosense session (mac-mini). They are not reachable from here, so the user relays them. HUB_Rev1_FW will then remove `D:/Code/HUB_Rev1_FW_wt_head` itself.
 
 ## Later

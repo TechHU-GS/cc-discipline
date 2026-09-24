@@ -937,3 +937,25 @@ This repo's installed copies are synced and pass too.
 - the install checks: 13/13.
 
 On the way, the worktree test compared a relative `--git-common-dir` with an absolute `--git-dir`, and so flagged a plain subdirectory as a worktree. Both paths are now asked for with `--path-format=absolute` (git ≥ 2.31; the fleet runs 2.50).
+
+### 2026-09-25 — 2.15.1 regression on macOS: a regex on half a character kills awk (verified)
+
+**Reported by ziiqii-geosense on mac-mini.** From 2.15.1 on, session-start never injected its Current Status; it fell back to the file's last 20 lines. The staleness note had vanished only because that fallback does no staleness check. The reporter traced it to the C.UTF-8 locale and headings such as `## 2026-08-04（三）· …` (65 in their file).
+
+**Verified on mac-mini (BSD awk 20200816).**
+- **Apple awk is byte-based even under a UTF-8 locale:** `length("当前态")` is 9, and `substr()` can return one byte of a multi-byte character.
+- **Under C.UTF-8 or en_US.UTF-8, a regex match against such a byte is fatal:** `awk: towc: multibyte conversion failure`, and awk exits. The hook then takes its fallback. gawk (MS-01, techhu-7940) tolerates stray bytes, so only macOS breaks.
+- **2.15.1's `date_in()` introduced it.** Its new "no digit may touch the date" check tests one byte on each side: `（` right after a date, or `：` right before one (`- 最后更新：2026-09-01`), kills it.
+- **A long fixture that the tail cannot reach** injects the status under every locale with 2.15.0, and only under `C` with 2.15.1.
+- **The same pattern has been latent since 2.15.0:** `heading_is()` tests the byte after a heading name, so `## Current Status（x）` would die too. git-guard has ten single-byte regex tests. A crash there falls back to the coarse check, which fails loud, so it can over-block but never under-block, and the matrix still passes 153/153 under C.UTF-8.
+
+**Why the tests missed it.** The ssh login shell on mac-mini has no locale set (LANG unset), so every matrix run on macOS until now was in the `C` locale. Under C.UTF-8, the session-start matrix fails 1 of 61.
+
+**Fixed in 2.15.2** by the user's choice of the two options: session-start and git-guard now run their awk with `LC_ALL=C`. That gives byte semantics everywhere, which is how the code is written, and fixes all twelve single-byte regex tests at once instead of rewriting each.
+
+**Tests first.** Three session-start cases and three git-guard cases were added:
+- a long file whose dates are followed by `（`, so the tail cannot reach the status line;
+- `## Current Status（第三版）`;
+- `>` and `>>` followed directly by a Chinese file name.
+
+Before the fix, under C.UTF-8 on mac-mini, session-start failed 4 of 64 and git-guard 1 of 156 (a spurious block). After it, both matrices, plus pre-edit-guard, pass under C, C.UTF-8 and en_US.UTF-8 on mac-mini, and under C and C.UTF-8 on techhu-7940's Git Bash (whose default is en_US.UTF-8).
