@@ -931,3 +931,9 @@ This repo's installed copies are synced and pass too.
 **Is anyone else using it?** Asked the same day; nothing shows it.
 - **npm downloads:** 4,629 since 2026-03-12. The spikes fall on our own release and rollout days (416 on 08-28, 270 on 09-02), which include mirrors and scanners fetching each new version.
 - **GitHub:** no stars, forks, issues or PRs. In 14 days there were 11 views from 7 people and 16 clones, the clones mostly crawlers, plus one visit each from Google and Bing.
+
+**Rollout helpers kept.** The inventory, rehearsal, rollout and install-check scripts, rebuilt from scratch for each rollout until now, are saved in `tools/` (not shipped). They were tested before being saved:
+- the rollout on a fixture: an approved install upgraded with all five checks ok, an unapproved one skipped, a detached worktree skipped, a missing one named;
+- the install checks: 13/13.
+
+On the way, the worktree test compared a relative `--git-common-dir` with an absolute `--git-dir`, and so flagged a plain subdirectory as a worktree. Both paths are now asked for with `--path-format=absolute` (git ≥ 2.31; the fleet runs 2.50).

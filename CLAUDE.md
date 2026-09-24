@@ -37,6 +37,7 @@
 │   ├── CLAUDE.md        ← Project CLAUDE.md template
 │   ├── docs/            ← progress.md + todo.md + debug-log.md templates
 │   └── memory/          ← MEMORY.md template
+├── tools/               ← Rollout helpers: inventory, rehearse-upgrade, rollout, install-checks (not shipped)
 ├── docs/
 │   ├── progress.md      ← This project's progress log
 │   └── debug-log.md     ← This project's debug log
@@ -82,6 +83,14 @@ npx cc-discipline@latest upgrade
 - **Path**: `bin/cli.sh`
 - **Purpose**: Legacy bash CLI entry point. Still works for direct bash usage.
 - **Usage**: `bash bin/cli.sh [command] [args]`
+
+### tools/ — rollout helpers (not shipped; `tools/` is absent from package.json `files`)
+Written for the 2.14.0–2.15.1 rollouts, which had each rebuilt them from scratch. All take their targets as arguments; the header of each shows the remote invocation for mac-mini and techhu-7940.
+- **`tools/inventory.sh <code dir>`** — read-only. Every install found by the `streak-breaker.sh` marker, 6 levels deep, with its version, parser or old git-guard, origin, last commit, and whether it is a (detached) worktree. Run it right before a rollout and have the user approve the list.
+- **`tools/rehearse-upgrade.sh <old package> <new tarball>`** — a throwaway project on the old release, upgraded from the new tarball, then the checks the rollout will make. Run it on each machine before rolling out.
+- **`tools/rollout.sh <tarball> <code dir> "<approved list>"`** — upgrades approved installs only. It skips and names anything unapproved and any detached linked worktree, names approved installs it cannot find, feeds each installed git-guard five payloads, and prints each installer's "Needs your attention" block verbatim. It reads the expected version from the tarball.
+- **`tools/install-checks.sh <repo dir> <older tarball>`** — 13 checks of this working tree's installer: the modified-hook report, the hooks manifest, CRLF tolerance, a 2.13.6 install from the registry, and the `.new` reminders in upgrade, doctor and status. Run it after touching init.sh, lib/doctor.sh, lib/status.sh or lib/hook-hashes.
+- **Testing a change on the other machines**: `tar czf` the repo (excluding `.git`), stream it with `ssh host 'tar xzf - -C /tmp/x'`, and run the matrices there. Give GNU tar a `/c/...` path, never `C:/...`, which it takes for a remote host.
 
 ### tests/pre-edit-guard-matrix.sh
 - **Path**: `tests/pre-edit-guard-matrix.sh`
@@ -178,6 +187,7 @@ Four separate failures in one session came from this family. Prefer Python with 
 
 ### Rollout
 
+- **Use `tools/inventory.sh`, `tools/rehearse-upgrade.sh` and `tools/rollout.sh`** — they encode the rules below.
 - **Enumerate installs by the marker `.claude/hooks/streak-breaker.sh`, never by the version file, and search deep (`find -maxdepth 6`).** The oldest installs have no version file at all, so a version-based inventory is structurally blind to exactly the ones most in need of upgrading. Nested installs exist too: two under mac-mini's `GS_IC/designs/` sat on 2.6.1 through every rollout until 2026-09-24.
 - **Remote rollout needs a LOGIN shell**: `ssh host 'bash -ls -- <args>' < script.sh`. Without `-l` no profile is sourced and `npx` is not on PATH — six installs failed together this way.
 - **`npx` inside `find | while read` eats the loop's stdin.** Collect the list into a variable and iterate with `for`, or redirect the command's stdin from `/dev/null`.
