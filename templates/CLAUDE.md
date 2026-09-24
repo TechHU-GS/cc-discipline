@@ -22,6 +22,7 @@
 ├── tests/        ← [TODO]
 ├── docs/
 │   ├── progress.md      ← Progress and decision log (maintained by Claude, do not edit manually)
+│   ├── todo.md          ← Open work: Now / Later (edit freely; Claude keeps it current)
 │   └── debug-log.md     ← Debug session log (maintained by Claude)
 └── .claude/
     ├── rules/           ← Auto-injected rules

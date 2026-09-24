@@ -19,7 +19,7 @@ Quickly identify:
 
 ### 2. Check knowledge files
 
-Read `docs/progress.md` — is it up to date? If not, update it NOW before compacting. This is your primary insurance against context loss.
+Read `docs/progress.md` and `docs/todo.md` — are they up to date? If not, update them NOW before compacting. They are your primary insurance against context loss: after a compaction the session-start hook re-injects progress.md's Current Status and todo.md's *Now* list.
 
 Also check: are there unsaved learnings that should go into memory?
 
@@ -45,4 +45,4 @@ Format:
 - **Include the "why", not just the "what".** "Using approach A" is less useful than "Using approach A because B had race condition issues we discovered in message #45."
 - **Include negative knowledge.** What NOT to do is as valuable as what to do. "Don't use the built-in cache — it doesn't support TTL, we already tested this."
 - **Keep it under 500 words.** The option needs to be dense, not exhaustive. If you need more, put the details in progress.md and reference it.
-- **Don't overlap with progress.md.** The option should complement progress.md, not duplicate it. Focus the option on session-specific context that progress.md might not capture (conversation dynamics, user preferences expressed this session, subtle constraints).
+- **Don't overlap with progress.md or todo.md.** The option should complement them, not duplicate them. Focus the option on session-specific context that progress.md might not capture (conversation dynamics, user preferences expressed this session, subtle constraints).

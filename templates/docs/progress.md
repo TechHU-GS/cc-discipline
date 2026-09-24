@@ -9,8 +9,9 @@
 
 - **In progress**: [none]
 - **Last updated**: [none]
-- **Next steps**: [none]
 - **Modified files**: [none]
+
+Open work lives in `docs/todo.md`; this file records what happened.
 
 ---
 

@@ -17,6 +17,8 @@ Check each in order (simple changes may skip):
 
 **docs/progress.md** — Does this change constitute a milestone or significant progress? If so, append a record. Also check the "Working Context" section: are Key Commands, Current Workflow, Tools & Scripts, Environment State, and Gotchas up to date? These are your lifeline after compact — if they're stale, a post-compact Claude starts from scratch.
 
+**docs/todo.md** — Did this change finish anything listed there? Delete it. Did it turn up follow-up work? Add it under *Now*, or under *Later* with a condition for revisiting it.
+
 **docs/debug-log.md** — Are there debug sessions that need to be closed or updated?
 
 **CLAUDE.md** — Are there new components, interfaces, known pitfalls, or architectural changes to sync? Did you create any helper scripts or tools this session? If so, register them in the "Project Tools" section of CLAUDE.md NOW — not in progress.md (which is ephemeral), but in CLAUDE.md (which is permanent).
