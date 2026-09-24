@@ -22,7 +22,8 @@ PASS=0; FAIL=0
 
 # run <case-dir> → hook output in $OUT, exit code in $RC
 run() {
-    OUT=$(cd "$1" && printf '{"session_id":"matrix"}' | bash "$HOOK" 2>&1); RC=$?
+    # "Today" is pinned so staleness notes don't depend on when the matrix runs.
+    OUT=$(cd "$1" && printf '{"session_id":"matrix"}' | CC_DISCIPLINE_TODAY=2026-09-24 bash "$HOOK" 2>&1); RC=$?
 }
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
@@ -159,6 +160,65 @@ run "$D"
 has   "real Now item shown"            "real item"
 has   "item after an in-section comment kept" "item after the comment"
 lacks "commented-out section ignored"  "commented-out fake item"
+
+# ── 2.14.0 field reports (HUB_Rev1_FW, ziiqii-geosense, techhu-devices) ──
+echo "--- status headings with a suffix, or in Chinese ---"
+newcase suffix;  printf '%s\n' "## Current Status (2026-09-20)" "- suffixed heading body" > "$D/docs/progress.md"; run "$D"
+has   "suffix after Current Status"    "suffixed heading body"
+newcase dangtai; printf '%s\n' "## 当前态(2026-09-20)— 这一段只替换不追加" "- 当前态正文" "## 里程碑" "- 不该注入" > "$D/docs/progress.md"; run "$D"
+has   "当前态 with a suffix"           "当前态正文"
+lacks "当前态 ends at the next heading" "不该注入"
+newcase dqzt;    printf '%s\n' "## 当前状态" "- 当前状态正文" > "$D/docs/progress.md"; run "$D"
+has   "当前状态"                        "当前状态正文"
+newcase statuses
+{ printf '%s\n' "## Current Statuses" "- not a status section, must not be injected"; for i in $(seq 1 25); do echo "filler line $i"; done; } > "$D/docs/progress.md"; run "$D"
+lacks "a longer word is not a match"   "not a status section"
+
+echo "--- a code fence inside Current Status ---"
+newcase fence
+printf '%s\n' "## Current Status" "- a before fence" '```bash' "## not a heading, inside a code block" '```' "- b after fence" "## Milestones" "- milestone line" > "$D/docs/progress.md"
+run "$D"
+has   "text after the fence kept"      "b after fence"
+has   "fenced line kept as content"    "not a heading, inside a code block"
+lacks "section still ends at the next real heading" "milestone line"
+
+echo "--- Later: sub-items and revisit conditions ---"
+newcase subitems
+printf '%s\n' "## Later" "- [ ] parent item — revisit: later" "    - sub a" "    - sub b" > "$D/docs/todo.md"; run "$D"
+has   "indented sub-items not counted" "Later: 1 item(s)"
+has   "all items have a condition"     "each with a revisit condition"
+newcase nocond
+printf '%s\n' "## Later" "- [ ] has one — revisit: before release" "- [ ] has none" "- [ ] wrapped item" "  continued here — revisit: next week" > "$D/docs/todo.md"; run "$D"
+has   "three open items"               "Later: 3 item(s)"
+has   "the item without a condition is reported" "1 without a revisit condition"
+lacks "no blanket claim when one lacks a condition" "each with a revisit condition"
+
+echo "--- a stale Current Status is flagged ---"
+newcase stale_newer
+printf '%s\n' "## Current Status" "- **Last updated**: 2026-05-18" "- old state" "## Milestones" "### 2026-09-23 — newest entry" "- m" > "$D/docs/progress.md"; run "$D"
+has   "stale: newer entry exists"      "may be stale"
+has   "names the newer date"           "2026-09-23"
+newcase stale_today
+printf '%s\n' "## Current Status" "- **Last updated**: 2026-05-18" "- old state" > "$D/docs/progress.md"; run "$D"
+has   "stale: old by the calendar"     "may be stale"
+newcase fresh_status
+printf '%s\n' "## Current Status" "- **Last updated**: 2026-09-23" "- current state" "### 2026-09-20 — older entry" > "$D/docs/progress.md"; run "$D"
+lacks "fresh status not flagged"       "may be stale"
+newcase stale_heading
+printf '%s\n' "## 当前态(2026-09-05)" "- 状态" "## 2026-09-20 · 新条目" "- x" > "$D/docs/progress.md"; run "$D"
+has   "date taken from the heading"    "2026-09-05"
+has   "heading-dated status flagged"   "may be stale"
+
+echo "--- status length set per project ---"
+newcase lines30
+{ echo "<!-- cc-discipline: status-lines=30 -->"; echo "## Current Status"; for i in $(seq 1 40); do echo "- status line $i"; done; } > "$D/docs/progress.md"; run "$D"
+has   "line 30 shown"                  "status line 30"
+lacks "line 31 not shown"              "status line 31"
+has   "overflow counted from 30"       "10 more lines under Current Status"
+lacks "the marker itself is not injected" "cc-discipline: status-lines"
+newcase badmarker
+{ echo "<!-- cc-discipline: status-lines=0 -->"; echo "## Current Status"; for i in $(seq 1 18); do echo "- status line $i"; done; } > "$D/docs/progress.md"; run "$D"
+lacks "an out-of-range marker falls back to 15" "status line 16"
 
 echo
 echo "通过 $PASS / 失败 $FAIL"
