@@ -1,7 +1,8 @@
 #!/bin/bash
 # cc-discipline: Guard against destructive git commands
 # PreToolUse on Bash — blocks git checkout/restore/reset --hard/clean -f,
-# branch -D and force-pushes to main/master until the user confirms.
+# branch -D, stash drop/clear and force-pushes to main/master until the user
+# confirms.
 #
 # Failure direction: LOUD. A spurious confirmation prompt costs one turn; a
 # miss costs the user's uncommitted work.
@@ -11,12 +12,16 @@
 #   1. Read the payload exactly: top-level tool_name, and command directly
 #      inside tool_input — the paths jq would read, without needing jq.
 #   2. Lift every $(...) and `...` out into its own work item: substitutions
-#      execute even inside a quoted -m message.
+#      execute even inside a quoted -m message. Heredoc bodies are cut out in
+#      the same pass.
 #   3. Tokenize with bash quoting rules and split into single commands at
 #      ; && || | & ( ) and newlines. Quoted text is also queued as its own work
 #      item (bash -c "...", eval "...", ssh host "..."), except the argument of
-#      -m/--message/-F/--file, which is data. Heredoc bodies are queued as code:
-#      a heredoc fed to bash executes (see CLAUDE.md Known Pitfalls).
+#      -m/--message/-F/--file, which is data. A heredoc body is data when it
+#      only feeds cat, tee or git commit -F - and nothing in the command runs
+#      code; otherwise it is judged as code (decide_heredocs). Until 2.15.0
+#      every body was code, and appending notes that NAME these commands to a
+#      file was blocked every day.
 #   4. For each git invocation, skip global options (-C, -c, --git-dir, ...),
 #      find the subcommand and judge its flag SET — order and spelling
 #      (-df, -d -f, --delete --force) no longer matter.
@@ -30,7 +35,10 @@
 # Out of scope by design: deliberate obfuscation ($G reset, git aliases). This
 # guards against a fast, careless agent, not an adversary.
 #
-# Test: bash tests/git-guard-matrix.sh [path-to-this-file]
+# Tests: tests/git-guard-matrix.sh in the cc-discipline repository; they are
+# not installed with the hooks. To try a case by hand, write the command into a
+# file first: this guard reads quoted text as code, so a case typed inline
+# blocks the test command itself.
 
 IFS= read -r -d '' INPUT
 
@@ -39,8 +47,9 @@ function has_git(s) { return index(tolower(s), "git") > 0 }
 
 function enqueue(s) {
     if (!has_git(s)) return        # no rule can fire without a git word
+    if (s in SEEN) return          # judged once: long notes repeat the same `git ...` spans
     if (QN >= QMAX) { OVERFLOW = 1; return }
-    QN++; Q[QN] = s
+    SEEN[s] = 1; QN++; Q[QN] = s
 }
 
 function block(reason, hint) {
@@ -94,16 +103,39 @@ function parse_payload(s,    n, i, c, d, str) {
     }
 }
 
-# ── 2. Command substitutions ──────────────────────────────────────────────
-# Quoting is ignored here on purpose, so a ")" inside a quoted string can end
-# a substitution early. Every character still ends up either in the returned
-# string or in a queued item — but the leftover can land inside a message
-# argument, which is not scanned. queue_lifted() covers that case. The one
-# thing dropped on purpose is the commit-message heredoc below.
-function lift_substitutions(s,    n, i, c, out, j, depth, st, w, mp) {
-    n = length(s); out = ""; i = 1; st = 1         # s[st..i-1] is pending, not yet in out
+# ── 2. Command substitutions and heredoc bodies ───────────────────────────
+# Substitutions are matched by depth counting that ignores quotes inside them,
+# so a ")" inside a quoted string can end one early. Every character still ends
+# up either in the returned string or in a queued item — but the leftover can
+# land inside a message argument, which is not scanned; queue_lifted() covers
+# that case. Quotes OUTSIDE substitutions are tracked: single-quoted text is
+# literal (a quoted word that bash -c or ssh runs is queued by the tokenizer
+# and lifted then), and a "<<" inside quotes is not a heredoc.
+#
+# Heredoc bodies are cut out here and kept aside in PB[], so no quote or
+# backtick inside one can confuse what follows it. A QUOTED delimiter means the
+# body is literal, so nothing in it is lifted; an unquoted one expands, so its
+# substitutions are lifted like any others. Whether a body is then judged as
+# code is decided after tokenizing (decide_heredocs). The commit-message form
+# -m "$(cat <<'EOF' ... EOF)" is dropped on purpose (message_heredoc_end).
+function lift_substitutions(s, nohd,    n, i, c, out, j, depth, st, w, mp, q, hn) {
+    n = length(s); out = ""; i = 1; st = 1; q = ""; hn = 0   # s[st..i-1] is pending, not yet in out
+    if (!nohd) PBN = 0
     while (i <= n) {
         c = substr(s, i, 1)
+        if (q == "'") { if (c == "'") q = ""; i++; continue }
+        if (c == "\\") { i += 2; continue }                 # an escaped character is literal
+        if (q == "\"") { if (c == "\"") { q = ""; i++; continue } }
+        else if (c == "'" || c == "\"") { q = c; i++; continue }
+        else if (!nohd && c == "<" && substr(s, i + 1, 1) == "<" && substr(s, i + 2, 1) != "<" \
+                 && substr(s, i - 1, 1) != "<" && (j = heredoc_op(s, i + 2, n)) > 0) {
+            hn++; HLD[hn] = HOP_DELIM; HLDASH[hn] = HOP_DASH; HLQ[hn] = HOP_QUOTED
+            i = j; continue
+        }
+        else if (c == "\n" && hn > 0) {
+            out = out substr(s, st, i - st + 1)            # up to and including the newline
+            i = cut_bodies(s, i + 1, n, hn); hn = 0; st = i; continue
+        }
         if (c == "$" && substr(s, i + 1, 1) == "(") {
             out = out substr(s, st, i - st)
             # Only the tail can decide message position. Matching all of out
@@ -134,6 +166,52 @@ function lift_substitutions(s,    n, i, c, out, j, depth, st, w, mp) {
         i++
     }
     return out substr(s, st)
+}
+
+# After "<<": optional "-", blanks, then a delimiter that is 'X', "X", \X or a
+# bare word. Sets HOP_DELIM, HOP_DASH, HOP_QUOTED; returns the index just past
+# the delimiter, or 0 when there is none.
+function heredoc_op(s, j, n,    dash, q, k) {
+    dash = 0
+    if (substr(s, j, 1) == "-") { dash = 1; j++ }
+    while (substr(s, j, 1) ~ /[ \t]/) j++
+    q = substr(s, j, 1)
+    if (q == "'" || q == "\"") {
+        k = j + 1
+        while (k <= n && substr(s, k, 1) != q && substr(s, k, 1) != "\n") k++
+        if (substr(s, k, 1) != q) return 0
+        HOP_DELIM = substr(s, j + 1, k - j - 1); HOP_QUOTED = 1; j = k + 1
+    } else {
+        HOP_QUOTED = 0
+        if (q == "\\") { HOP_QUOTED = 1; j++ }
+        k = j
+        while (k <= n && substr(s, k, 1) ~ /[A-Za-z0-9_.-]/) k++
+        HOP_DELIM = substr(s, j, k - j); j = k
+    }
+    if (HOP_DELIM == "") return 0
+    HOP_DASH = dash
+    return j
+}
+
+# Cut the bodies of the hn heredocs opened on the line that just ended; s[i] is
+# the first body line. Returns the index just past the last terminator line. A
+# body with no terminator runs to the end of the string, as it does in bash.
+function cut_bodies(s, i, n, hn,    k, e, line, start, body) {
+    for (k = 1; k <= hn; k++) {
+        start = i
+        while (1) {
+            if (i > n) { body = substr(s, start); break }
+            e = eol(s, i, n)
+            line = (e > 0) ? substr(s, i, e - i) : substr(s, i)
+            sub(/\r$/, "", line)
+            if (HLDASH[k]) sub(/^\t+/, "", line)
+            if (line == HLD[k]) { body = substr(s, start, i - start); i = (e > 0) ? e + 1 : n + 1; break }
+            if (e == 0) { body = substr(s, start); i = n + 1; break }
+            i = e + 1
+        }
+        PBN++; PB[PBN] = HLQ[k] ? body : lift_substitutions(body, 1)
+    }
+    return i
 }
 
 # Index of the next newline at or after j, or 0. A scan rather than
@@ -194,8 +272,8 @@ function message_heredoc_end(s, j, n,    dash, q, k, delim, line, e) {
 # of a message flag, i.e. data).
 function end_word() {
     if (!_inw) return
-    if (_hdword) { HDN++; HD[HDN] = _cur; _hdword = 0 }
-    else if (_redir) _redir = 0                     # a redirection target
+    if (_hdword) _hdword = 0                         # a heredoc delimiter
+    else if (_redir) { _redir = 0; RN++; RDT[RN] = _cur; RDA[RN] = TN }   # a redirection target, kept aside
     else {
         TN++; T[TN] = _cur; TY[TN] = "w"; TQ[TN] = _qb
         TM[TN] = (_last ~ /^(-m|--message|-F|--file)$/ || _cur ~ /^(-m.|--message=|-F.|--file=)/)
@@ -210,33 +288,9 @@ function add_op(op) {
     _last = ""
 }
 
-# Queue each pending heredoc body as code and return the index just past the
-# last terminator line. Bodies are cut out whole, so an apostrophe inside one
-# cannot open a quote that swallows the commands after it.
-function read_heredocs(s, i, n,    k, e, line, start) {
-    for (k = 1; k <= HDN; k++) {
-        start = i
-        while (i <= n) {
-            e = eol(s, i, n)
-            line = (e > 0) ? substr(s, i, e - i) : substr(s, i)
-            sub(/\r$/, "", line)
-            if (HDD[k]) sub(/^\t+/, "", line)
-            if (line == HD[k]) {
-                enqueue(substr(s, start, i - start))
-                i = (e > 0) ? e + 1 : n + 1
-                break
-            }
-            if (e == 0) { enqueue(substr(s, start)); i = n + 1; break }
-            i = e + 1
-        }
-    }
-    HDN = 0
-    return i
-}
-
 function tokenize(s,    n, i, c, e, q) {
     split("", T); split("", TY); split("", TQ); split("", TM)
-    TN = 0; HDN = 0; _cur = ""; _inw = 0; _qb = ""; _redir = 0; _hdword = 0; _last = ""
+    TN = 0; HOPN = 0; RN = 0; _cur = ""; _inw = 0; _qb = ""; _redir = 0; _hdword = 0; _last = ""
     n = length(s); i = 1; q = ""
     while (i <= n) {
         c = substr(s, i, 1)
@@ -275,12 +329,9 @@ function tokenize(s,    n, i, c, e, q) {
             i = (e > 0) ? e : n + 1
             continue
         }
-        if (c == "\n") {
-            add_op(";"); i++
-            if (HDN > 0) i = read_heredocs(s, i, n)
-            continue
-        }
-        if (c == ";" || c == "(" || c == ")") { add_op(";"); i++; continue }
+        if (c == "\n") { add_op(";"); i++; continue }  # heredoc bodies were cut out by the lift pass
+        # A backtick left here is one the lift pass read as quoted: still a boundary.
+        if (c == ";" || c == "(" || c == ")" || c == "`") { add_op(";"); i++; continue }
         if (c == "&") {
             e = substr(s, i + 1, 1)
             if (e == "&") { add_op("&&"); i += 2; continue }
@@ -301,10 +352,10 @@ function tokenize(s,    n, i, c, e, q) {
             if (_inw && _qb == "" && _cur ~ /^[0-9]+$/) { _cur = ""; _inw = 0 }   # the fd in 2>
             else end_word()
             if (substr(s, i, 3) == "<<<") { i += 3; continue }   # here-string: its word is data for the command, keep it
-            if (substr(s, i, 2) == "<<") {
-                i += 2; HDD[HDN + 1] = 0
-                if (substr(s, i, 1) == "-") { HDD[HDN + 1] = 1; i++ }
-                _hdword = 1; continue
+            if (substr(s, i, 2) == "<<") {                # the body is already cut out
+                i += 2
+                if (substr(s, i, 1) == "-") i++
+                HOPN++; HOPAT[HOPN] = TN; _hdword = 1; continue
             }
             i++
             while (substr(s, i, 1) ~ /[<>&|]/) i++
@@ -315,6 +366,95 @@ function tokenize(s,    n, i, c, e, q) {
         _cur = _cur substr(s, i, e - i); _inw = 1; i = e
     }
     end_word()
+}
+
+# ── 3b. Heredoc bodies: data or code ──────────────────────────────────────
+# A body is data only when all of this holds, and code otherwise:
+#   - it belongs to the command Claude typed; a heredoc inside a substitution
+#     or a quoted string runs wherever that text runs;
+#   - its command is a data sink (cat, tee, git commit -F -) that is not
+#     writing a script (x.sh, .git/hooks/..., bin/...), and every later stage
+#     of its pipeline is a sink or a plain filter: cat <<X | bash is code;
+#   - nothing in the command runs an interpreter or a script, and there is no
+#     <( or >(: cat > x.sh <<X ... && bash x.sh writes code and then runs it;
+#   - the tokenizer found exactly as many "<<" as the lift pass cut bodies.
+#     When the two passes disagree, nothing is trusted.
+# This is a list of what may pass, not of what must be blocked, so a command
+# it does not know keeps its heredoc judged as code.
+function decide_heredocs(s,    k, allcode) {
+    if (PBN == 0) return
+    allcode = (CURQI != 1 || HOPN != PBN || index(s, "<(") || index(s, ">(") || item_runs())
+    for (k = 1; k <= PBN; k++)
+        if (allcode || !heredoc_is_data(HOPAT[k])) enqueue(PB[k])
+}
+
+function base(w) { w = tolower(w); sub(/.*[\/\\]/, "", w); sub(/\.exe$/, "", w); return w }
+
+# Index of the command word of stage T[a..b], past VAR=value assignments and
+# wrappers such as sudo or env; 0 when there is none.
+function cmd_at(a, b,    k) {
+    k = a
+    while (k <= b) {
+        if (T[k] ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { k++; continue }
+        if (T[k] ~ /^(sudo|env|nohup|time|command|nice)$/) { k++; while (k <= b && T[k] ~ /^-/) k++; continue }
+        return k
+    }
+    return 0
+}
+
+# A file that will be run later: a script extension, or a hooks/ or bin/ path.
+function script_like(w) {
+    return (w ~ /\.(sh|bash|zsh|py|pl|rb|js|mjs|cjs|ts|ps1|psm1|bat|cmd)$/ || w ~ /(^|[\/\\])(hooks|\.husky|bin)[\/\\]/)
+}
+
+function sink_stage(a, b,    k, c, j) {
+    k = cmd_at(a, b); if (!k) return 0
+    c = base(T[k])
+    # cat > x.sh <<EOF writes a script: that body is code, run now or later
+    for (j = 1; j <= RN; j++) if (RDA[j] >= a && RDA[j] <= b && script_like(RDT[j])) return 0
+    if (c == "cat") return 1
+    if (c == "tee") { for (j = k + 1; j <= b; j++) if (script_like(T[j])) return 0; return 1 }
+    if (c != "git") return 0
+    for (j = k + 1; j <= b && T[j] != "commit"; j++) ;
+    for (; j <= b; j++)
+        if ((T[j] ~ /^(-F|--file)$/ && T[j + 1] == "-") || T[j] == "--file=-" || T[j] == "-F-") return 1
+    return 0
+}
+
+function filter_stage(a, b,    k) {
+    k = cmd_at(a, b)
+    return k && base(T[k]) ~ /^(grep|egrep|fgrep|head|tail|wc|sort|uniq|cut|tr)$/
+}
+
+# Does anything in this command run code? Any word naming an interpreter, a
+# ./path, or a stage whose command is a script file.
+function item_runs(    k, a, c) {
+    for (k = 1; k <= TN; k++)
+        if (TY[k] == "w" && (base(T[k]) ~ RUNNERS || T[k] ~ /^\.\.?[\/\\]/)) return 1
+    a = 1
+    for (k = 1; k <= TN + 1; k++) {
+        if (k > TN || TY[k] != "w") {
+            if (a < k && (c = cmd_at(a, k - 1)) && T[c] ~ /\.(sh|bash|zsh|py|pl|rb|js|mjs|ts|ps1|bat|cmd)$/) return 1
+            a = k + 1
+        }
+    }
+    return 0
+}
+
+function heredoc_is_data(p,    a, b, k, st, own) {
+    if (p < 1 || TY[p] != "w") p++                  # "<<" before any word: the next word owns it
+    if (p > TN || TY[p] != "w") return 0
+    a = p; while (a > 1 && (TY[a - 1] == "w" || TY[a - 1] == "|")) a--
+    b = p; while (b < TN && (TY[b + 1] == "w" || TY[b + 1] == "|")) b++
+    own = 0; st = a
+    for (k = a; k <= b + 1; k++) {
+        if (k > b || TY[k] == "|") {
+            if (st <= p && p <= k - 1) { if (!sink_stage(st, k - 1)) return 0; own = 1 }
+            else if (own && !(sink_stage(st, k - 1) || filter_stage(st, k - 1))) return 0
+            st = k + 1
+        }
+    }
+    return own
 }
 
 # ── 4. Judging ────────────────────────────────────────────────────────────
@@ -393,7 +533,7 @@ function judge_git(a, b,    j, w, amb) {
 }
 
 function judge_sub(name, a, b,    k, w, dd, pn, i, nm, force, staged, wt, r, L, sv, lv) {
-    if (name !~ /^(checkout|restore|reset|clean|branch|push)$/) return
+    if (name !~ /^(checkout|restore|reset|clean|branch|push|stash)$/) return
     # options that take a value: without this, "push -f -o ci.skip origin"
     # reads ci.skip as the remote and origin as a branch
     sv = ""; lv = "^$"
@@ -439,6 +579,13 @@ function judge_sub(name, a, b,    k, w, dd, pn, i, nm, force, staged, wt, r, L, 
             block("git branch -D (deletes branch even if not merged)", "git branch -d (safe delete, fails if not merged)")
         return
     }
+    if (name == "stash") {
+        # The hint for reset --hard is "git stash first", which makes the stash
+        # the backup; dropping it is the same loss one step later.
+        if (pn >= 1 && P[1] ~ /^(drop|clear)$/)
+            block("git stash " P[1] " (permanently deletes stashed changes)", "git stash list and git stash show -p to see what it holds (a dropped stash can only be recovered with git fsck)")
+        return
+    }
     # push: first positional is the remote, the rest are refspecs. -f/--force
     # forces every refspec; a leading + forces that one. --force-with-lease and
     # --force-if-includes are the safe forms and do not count. The main/master
@@ -454,11 +601,12 @@ function judge_sub(name, a, b,    k, w, dd, pn, i, nm, force, staged, wt, r, L, 
 
 # ── Main ──────────────────────────────────────────────────────────────────
 BEGIN {
-    QMAX = 200; QN = 0; OVERFLOW = 0; VERDICT = ""
+    QMAX = 1000; QN = 0; OVERFLOW = 0; VERDICT = ""
     HAVETOOL = 0; TOOL = ""; HAVECMD = 0; CMD = ""
     MSGPOS = "(^|[ \t\n])(-m|--message|-F|--file)(=|[ \t]*(\\\\\n[ \t]*)?)\"?$"
     MSGTAIL = "[ \t\n](-m|--message|-F|--file)(=|[ \t]*(\\\\\n[ \t]*)?)\"?$"
-    STOP = " \t\r\n;&|()<>'\"\\"                   # characters that end an unquoted run
+    STOP = " \t\r\n;&|()<>'\"\\`"                  # characters that end an unquoted run
+    RUNNERS = "^(bash|sh|zsh|dash|ksh|fish|ash|busybox|python[0-9.]*|perl|ruby|node|nodejs|deno|bun|php|lua|tclsh|osascript|pwsh|powershell|cmd|ssh|xargs|parallel|eval|exec|source|\\.)$"
 }
 { PAYLOAD = (NR == 1) ? $0 : PAYLOAD "\n" $0 }
 END {
@@ -467,7 +615,10 @@ END {
     if (!HAVECMD) CMD = PAYLOAD                     # cannot isolate the command: scan it all
     enqueue(CMD)
     for (qi = 1; qi <= QN && VERDICT == ""; qi++) {
-        tokenize(lift_substitutions(Q[qi]))
+        CURQI = qi
+        LIFTED = lift_substitutions(Q[qi], 0)
+        tokenize(LIFTED)
+        decide_heredocs(LIFTED)
         judge_all()
     }
     if (VERDICT != "") print VERDICT

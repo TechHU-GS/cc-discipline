@@ -24,7 +24,8 @@ fi
 # Exemptions below use bash builtins only. `case` and parameter expansion fork
 # nothing, where `echo | grep` forks two processes and `basename` one. The
 # decisions are identical to the greps they replace — see
-# tests/pre-edit-guard-matrix.sh, which runs both and compares.
+# tests/pre-edit-guard-matrix.sh in the cc-discipline repository (it is not
+# installed with the hooks), which runs both and compares.
 
 # Allow edits to docs/ — case-SENSITIVE, matching the original grep (no -i).
 case "$FILE_PATH" in

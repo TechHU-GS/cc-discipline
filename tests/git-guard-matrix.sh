@@ -108,7 +108,7 @@ run BLOCK "sh -c 单引号"                    "sh -c ${SQ}git clean -fd${SQ}"
 run BLOCK "管道头是 git，不算 hook 自测"    "git reset --hard | bash .claude/hooks/git-guard.sh"
 run BLOCK "换行分隔"                        "git status${NL}git reset --hard"
 run BLOCK "反斜杠续行"                      "git reset \\${NL}--hard"
-run BLOCK "heredoc 正文照查（CLAUDE.md）"   "cat > notes.md <<${SQ}EOF${SQ}${NL}run git reset --hard to undo${NL}EOF"
+run PASS  "写进文件的 heredoc 正文是数据"   "cat > notes.md <<${SQ}EOF${SQ}${NL}run git reset --hard to undo${NL}EOF"
 run BLOCK "heredoc 里的撇号不吞后面的命令"  "cat > f.txt <<${SQ}EOF${SQ}${NL}don${SQ}t${NL}EOF${NL}git reset --hard"
 run BLOCK "提交 heredoc 后面还有命令"       "git commit -m ${Q}\$(cat <<${SQ}EOF${SQ}${NL}msg${NL}EOF${NL}git reset --hard${NL})${Q}"
 run BLOCK "定界符没加引号，正文会展开"      "git commit -m ${Q}\$(cat <<EOF${NL}\$(git reset --hard)${NL}EOF${NL})${Q}"
@@ -169,6 +169,42 @@ run PASS  "-F 紧贴文件名"                        "git commit -F${Q}notes on
 run PASS  "--file= 形式"                         "git commit --file=${Q}notes on git clean -fd.txt${Q}"
 run PASS  "hook 自测前面带 VAR=值"               "echo ${SQ}{${Q}command${Q}:${Q}git clean -fd${Q}}${SQ} | PATH=/x bash .claude/hooks/git-guard.sh"
 
+echo "── 2.14.0 试用反馈：heredoc 正文（必须放行：只是数据）──"
+run PASS  "cat >> 追加说明文字"                   "cat >> docs/progress.md <<${SQ}EOF${SQ}${NL}- 坑: 不要 git reset --hard${NL}EOF"
+run PASS  "git commit -F - 读 heredoc"            "git commit -F - <<${SQ}EOF${SQ}${NL}fix: 上次误用了 git reset --hard${NL}EOF"
+run PASS  "tee -a 追加"                           "tee -a notes.md <<${SQ}EOF${SQ}${NL}never git clean -fd here${NL}EOF"
+run PASS  "markdown 反引号片段"                   "cat >> notes.md <<${SQ}EOF${SQ}${NL}- avoid ${B}git reset --hard${B} and ${B}git push -f${B}${NL}EOF"
+run PASS  "管道只接 tee"                          "cat <<${SQ}EOF${SQ} | tee notes.md${NL}git checkout -- x is dangerous${NL}EOF"
+run PASS  "管道接 git commit -F -"                "cat <<${SQ}EOF${SQ} | git commit -F -${NL}undo git reset --hard${NL}EOF"
+LONG=""; i=0; while [ $i -lt 110 ]; do LONG="${LONG}- ${B}git log${B} then ${B}git push${B} (case $i)${NL}"; i=$((i+1)); done
+run PASS  "ziiqii 复现：长笔记里 220 个 git 片段" "cat >> docs/progress.md <<${SQ}EOF${SQ}${NL}${LONG}EOF"
+
+echo "── 2.14.0 试用反馈：heredoc 正文（必须拦：会被执行）──"
+run BLOCK "喂给 bash"                             "bash <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF"
+run BLOCK "sudo bash"                             "sudo bash <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF"
+run BLOCK "cat 经管道进 bash"                     "cat <<${SQ}EOF${SQ} | bash${NL}git reset --hard${NL}EOF"
+run BLOCK "先写脚本再用 bash 执行"                "cat > x.sh <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF${NL}bash x.sh"
+run BLOCK "先写脚本再 ./ 执行"                    "cat > x.sh <<${SQ}EOF${SQ}${NL}git clean -fd${NL}EOF${NL}chmod +x x.sh && ./x.sh"
+run BLOCK "先写 py 再用 python 执行"              "cat > x.py <<${SQ}EOF${SQ}${NL}import os; os.system(${Q}git reset --hard${Q})${NL}EOF${NL}python3 x.py"
+run BLOCK "喂给 python3 -"                        "python3 - <<${SQ}EOF${SQ}${NL}import os; os.system(${Q}git reset --hard${Q})${NL}EOF"
+run BLOCK "喂给 ssh"                              "ssh host <<${SQ}EOF${SQ}${NL}cd repo && git reset --hard${NL}EOF"
+run BLOCK "命令替换里的 heredoc 交给 bash -c"     "bash -c ${Q}\$(cat <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF${NL})${Q}"
+run BLOCK "进程替换里的 heredoc"                  "bash <(cat <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF${NL})"
+run BLOCK "未加引号的定界符：正文里的 \$(...)"   "cat > notes.md <<EOF${NL}\$(git reset --hard)${NL}EOF"
+run BLOCK "未加引号的定界符：正文里的反引号"      "cat > notes.md <<EOF${NL}${B}git reset --hard${B}${NL}EOF"
+run BLOCK "写脚本文件（没执行）也是代码"          "cat > x.sh <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF"
+run BLOCK "写 git hook 也是代码"                  "cat > .git/hooks/pre-commit <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF"
+run BLOCK "tee 写脚本也是代码"                    "tee deploy.sh <<${SQ}EOF${SQ}${NL}git clean -fd${NL}EOF"
+run BLOCK "写到 bin/ 下也是代码"                  "cat > bin/cleanup <<${SQ}EOF${SQ}${NL}git clean -fd${NL}EOF"
+
+echo "── 2.14.0 试用反馈：stash ──"
+run BLOCK "stash drop"                            "git stash drop"
+run BLOCK "stash drop 指定条目"                   "git stash drop stash@{1}"
+run BLOCK "stash clear"                           "git stash clear"
+run PASS  "stash list"                            "git stash list"
+run PASS  "stash pop"                             "git stash pop"
+run PASS  "stash push -m"                         "git stash push -m ${Q}wip${Q}"
+
 # The fallback path: when awk gives no verdict the wrapper runs a coarse text
 # check. Force that path with a stand-in awk that prints nothing and exits 1.
 echo "── awk 出错或溢出时的兜底 ──"
@@ -182,7 +218,9 @@ shim BLOCK "awk 坏了：危险命令仍拦"              "git reset --hard"
 shim PASS  "awk 坏了：非 git 命令放行"           "ls -la"
 shim PASS  "awk 坏了：git 但不是受保护子命令"    "git status"
 rm -rf "$SHIM"
-OV=""; i=0; while [ $i -lt 201 ]; do OV="${OV}echo ${Q}git log${Q}; "; i=$((i+1)); done
+# Distinct strings: identical ones are judged once (the queue dedupes), so only
+# more than QMAX (1000) different pieces can overflow it.
+OV=""; i=0; while [ $i -lt 1001 ]; do OV="${OV}echo ${Q}git log $i${Q}; "; i=$((i+1)); done
 run BLOCK "工作队列溢出：粗检查兜底拦"          "${OV}git push origin feature-x"
 run PASS  "工作队列溢出：没有受保护子命令就放行" "${OV}ls"
 BIG=""; i=0; while [ $i -lt 1200 ]; do BIG="${BIG}some text for a large file, nothing special here 0123456789${NL}"; i=$((i+1)); done
