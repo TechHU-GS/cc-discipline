@@ -43,6 +43,11 @@ fi
 #     condition" is only said when every item actually has one.
 # Comment state is tracked on every line, before any heading test, so a heading
 # written inside <!-- ... --> neither opens nor closes a section.
+# awk runs with LC_ALL=C: byte semantics everywhere, which is how this code is
+# written. Under a UTF-8 locale, macOS's awk is still byte-based for substr()
+# and length(), but a regex match against half a multi-byte character is
+# fatal ("towc: multibyte conversion failure"). 2.15.1 died that way on
+# "## 2026-08-04（三）" and fell back to the file's tail (2026-09-25).
 # Every fork costs tens of milliseconds on Windows Git Bash, so awk strips the
 # CRs itself and its output is parsed with bash builtins: this runs at the
 # start of every session.
@@ -83,7 +88,7 @@ function skip() {
 STATUS=""; STATUS_NOTE=""
 if [ -f "docs/progress.md" ]; then
     # One pass. Emits "@key=value" lines, then the capped body as "|line".
-    PROGRESS=$(awk "$AWK_LIB"'
+    PROGRESS=$(LC_ALL=C awk "$AWK_LIB"'
         BEGIN { lines = 15 }
         { sub(/\r$/, "") }
         /<!--[ \t]*cc-discipline:[ \t]*status-lines=/ {
@@ -152,7 +157,7 @@ if [ -f "docs/todo.md" ]; then
     # One pass: the Now body (capped at 20), and Later's top-level items. An open
     # item is a top-level bullet that isn't ticked ("- [ ] x" or "- x", not
     # "- [x] x"); indented lines belong to the item above them.
-    TODO=$(awk "$AWK_LIB"'
+    TODO=$(LC_ALL=C awk "$AWK_LIB"'
         function close_item() { if (item && !cond) nocond++; item = 0 }
         { sub(/\r$/, "") }
         { k = skip() }

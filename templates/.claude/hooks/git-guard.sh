@@ -643,7 +643,12 @@ AWK
 if [ ${#INPUT} -gt 65536 ]; then
     VERDICT=TOOLONG
 else
-    VERDICT=$(awk "$PROG" <<<"$INPUT" 2>/dev/null)
+    # awk runs with LC_ALL=C: byte semantics everywhere, which is how this code is
+    # written. Under a UTF-8 locale, macOS's awk is still byte-based for substr()
+    # and length(), but a regex match against half a multi-byte character is
+    # fatal ("towc: multibyte conversion failure"). 2.15.1 died that way on
+    # "## 2026-08-04（三）" and fell back to the file's tail (2026-09-25).
+    VERDICT=$(LC_ALL=C awk "$PROG" <<<"$INPUT" 2>/dev/null)
 fi
 TAB=$'\t'
 NOTE=""    # never inherited from the environment

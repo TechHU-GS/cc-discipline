@@ -223,6 +223,18 @@ newcase lastloses
 printf '%s\n' "## 当前态(2026-09-23)" "- 最后更新：2026-09-01" "- 状态" "## 2026-09-20 · 较新条目" "- x" > "$D/docs/progress.md"; run "$D"
 has   "the last-updated line is used even when older than the heading" "last updated 2026-09-01"
 
+echo "--- 2.15.1 field report: full-width characters touching a date or a heading name ---"
+# These only fail under a UTF-8 locale on macOS, where BSD awk dies on a regex
+# against half a character. Run this matrix there with LC_ALL=C.UTF-8 as well.
+newcase fullwidth
+{ printf '%s\n' "## Current Status" "- **Last updated**: 2026-09-24" "- the status line"
+  for i in $(seq 1 30); do echo "## 2026-08-$(printf %02d $(( (i % 28) + 1 )))（三）· 记录 $i"; echo "- entry $i"; done; } > "$D/docs/progress.md"; run "$D"
+has   "status injected past full-width dates (not the tail)" "the status line"
+lacks "the tail is not what got injected" "entry 30"
+newcase fwheading
+{ printf '%s\n' "## Current Status（第三版）" "- the fw status line"; for i in $(seq 1 25); do echo "filler $i"; done; } > "$D/docs/progress.md"; run "$D"
+has   "a heading name followed by a full-width bracket" "the fw status line"
+
 echo "--- status length set per project ---"
 newcase lines30
 { echo "<!-- cc-discipline: status-lines=30 -->"; echo "## Current Status"; for i in $(seq 1 40); do echo "- status line $i"; done; } > "$D/docs/progress.md"; run "$D"

@@ -209,6 +209,11 @@ hint yes "写脚本文件的 heredoc"             "cat > x.sh <<${SQ}EOF${SQ}${N
 hint no  "直接执行危险命令不附这句"         "git reset --hard"
 hint no  "bash -c 里的危险命令不附这句"     "bash -c ${Q}git clean -fd${Q}"
 
+echo "── 2.15.1 试用反馈：全角和中文紧挨着运算符（macOS 的 UTF-8 环境下才会触发）──"
+run PASS  "> 后面直接跟中文文件名"           "cat >笔记.md <<${SQ}EOF${SQ}${NL}- 不要 git reset --hard${NL}EOF"
+run PASS  ">> 后面直接跟中文文件名"          "echo 测试 >>日志.txt"
+run BLOCK "中文参数之后的危险命令仍然拦"     "echo 完成 >>日志.txt && git reset --hard"
+
 echo "── 2.14.0 试用反馈：stash ──"
 run BLOCK "stash drop"                            "git stash drop"
 run BLOCK "stash drop 指定条目"                   "git stash drop stash@{1}"
