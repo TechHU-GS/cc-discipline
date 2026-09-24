@@ -752,3 +752,10 @@ All 5 cases reproduced here. **The pre-rewrite hook behaves identically on every
 - **26 active installs:** 25 upgraded, plus this repo.
 - **2 frozen copies**, left alone on purpose.
 - **Not installed:** gsus-pipeline and frost-twin (MS-01), and smpp-notif-gateway and gmp-platform (mac-mini). All four were active recently and have their own CLAUDE.md and `.claude/`; the user decided not to install there this time.
+
+**Follow-ups done the same day.**
+- **techhu-7940 `techhu-devices`:** the duplicate git-guard registration was removed with node. The file is valid JSON afterwards, `git diff` shows only that one 9-line block, and the change is left uncommitted.
+- **`~/.claude/CLAUDE.md` on all three machines** now matches the 2.14.0 `global/CLAUDE.md`:
+  - each copy had been identical to the old template, so exactly three lines changed in Context Hygiene: the delegation line, and the two lines that now mention todo.md;
+  - each machine was backed up before writing; the file read back matched byte for byte, and the diff against the backup showed only those three lines;
+  - line endings are LF on all three. An earlier count had claimed CRLF, but `$''` had not expanded and `grep -c` was counting every line.
