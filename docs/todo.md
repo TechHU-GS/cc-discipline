@@ -5,12 +5,12 @@
 
 ## Now
 
-- [ ] `HUB_Rev1_FW_wt_head` on techhu-7940, a detached worktree created 17:28 on 2026-09-24, was upgraded to 2.15.0 unasked: 21 framework files modified and 2 added, uncommitted, with a backup in `.claude/.backup-20260924-174148/`. The user is asking the HUB session whether to restore it to HEAD or keep it; do nothing there until then.
+- [ ] Roll out 2.15.1 (the date fix, "last updated" precedence, the Write-tool note) to the approved 25: re-inventory first, skip detached worktrees, ask about anything new. `HUB_Rev1_FW_wt_head` is a disposable worktree the HUB session will remove itself once told it is fine to (nothing of ours there needs keeping)
 - [ ] Publish 2.15.0 to npm once the token is rotated: until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one
 
 ## Later
 
-- [ ] session-start takes a status section's date from its heading before a "Last updated" line, so HUB_Rev1_FW's `## 当前态(2026-09-05)` (the date the convention began) is flagged "may be stale" in every session. Let an explicit Last-updated line win, or ask HUB to date its heading — revisit: when the HUB session reports on 2.15.0, or when session-start is next edited.
+- [ ] Measure a git-derived freshness for the status section (HUB_Rev1_FW's suggestion: the newest commit date among the section's lines, `git blame -L`, with uncommitted lines counting as today) on HUB's multi-thousand-line progress.md, on Windows Git Bash, and adopt it only if session-start stays near 400ms — revisit: before the next session-start change. 2.15.1 makes an explicit "last updated" line beat the heading date meanwhile.
 - [ ] git-guard gaps left out of the next release: `switch -f`/`--discard-changes`, `worktree remove --force`, `update-ref -d`, `checkout <commit> <path>` — revisit: after the next release, when each is one rule plus tests.
 - [ ] Move `/self-check`'s project-specific checks out of the framework's SKILL.md into a project-owned file, so a template change stops producing `SKILL.md.new` in every install that has any (about fifteen did in the 2.14.0 rollout) — revisit: after 2.15.0, or the next time the self-check template changes.
 - [ ] A rule that a subagent's findings are leads, not facts: verify the load-bearing ones before stating them (raised from HUB_Rev1_FW, 2026-09-24; in this repo a claude-code-guide agent once fabricated two citations) — revisit: with the held audit items.

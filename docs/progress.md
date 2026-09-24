@@ -895,3 +895,22 @@ This repo's installed copies are synced and pass too.
 - **Lesson** (now in CLAUDE.md → Rollout): re-inventory right before rolling out and compare with the approved list; ask about anything new.
 
 **A likely false alarm.** HUB's heading date, 2026-09-05, marks when its 当前态 convention began, not when the section was last replaced. The session-start therefore tags HUB's status "may be stale" in every session, because newer dated entries exist below it. Recorded in todo Later.
+
+### 2026-09-24 — 2.15.1: a date that was a ticket number, and a note for interpreter heredocs
+
+**Two more field reports.**
+- **ziiqii-geosense, a new bug.**
+  - The staleness note fired every session because `date_in()` took the first `YYYY-NN-NN` shape it met. In `GS-QTC-2026-38-001` (year-week-serial), that shape is `2026-38-00`, which as a string beats every real date.
+  - Reproduced verbatim.
+  - Fixed: the month must be 01–12, the day 01–31, and no digit may touch either end.
+- **ziiqii-geosense, a request.** Let `python3 - <<'EOF'` pass when the dangerous text is only in string literals.
+  - Declined, by the user's choice: telling whether python code executes a string is not reliable, and a list of dangerous functions would leak.
+  - Instead, a block raised inside a heredoc that gets run now ends with the advice: write the script with the Write tool and run the file. Queue items carry that origin to whatever they spawn. `NOTE` cannot leak in from the environment.
+- **HUB_Rev1_FW.**
+  - **Its heading date** is the date of the section's last whole rewrite, and lines were updated after it.
+  - **An explicit "last updated" line now beats the heading's date.**
+  - **Git-derived freshness** (HUB's preference) waits for a latency measurement; see todo.md Later.
+  - **Its worktree** was scratch, and it will remove it itself.
+  - **Its self-check merge plan** missed §5's changed closing paragraph, which now also covers todo.md and raises due Later items.
+
+**Matrices:** git-guard 153/153 (four cases check the note), session-start 61/61 (four date cases, all failing on 2.15.0).
