@@ -191,6 +191,18 @@ fi
 # Parse choices into array
 IFS=' ' read -ra STACKS <<< "$STACK_CHOICES"
 
+# Stack rules are framework files, like the core rules, so anything other than a
+# fresh install refreshes every stack already installed, whatever was chosen
+# above. Without this an `upgrade` (which passes --auto, and --auto defaults the
+# stack to 7, meaning none) or an interactive "Enter to keep current" copied no
+# stack file at all, so changes to stack rules never reached an existing install.
+if [ "$INSTALL_MODE" != "fresh" ]; then
+    detect_installed_stacks
+    for s in $INSTALLED_STACKS; do
+        case " ${STACKS[*]} " in *" $s "*) ;; *) STACKS+=("$s") ;; esac
+    done
+fi
+
 # ─── Project name ───
 if [ -n "$ARG_NAME" ]; then
     PROJECT_NAME="$ARG_NAME"
@@ -237,12 +249,23 @@ mkdir -p docs
 echo -e "${GREEN}Installing core rules...${NC}"
 cp "$SCRIPT_DIR/templates/.claude/rules/00-core-principles.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/01-debugging.md" .claude/rules/
-cp "$SCRIPT_DIR/templates/.claude/rules/02-before-edit.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/03-context-mgmt.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/04-no-mole-whacking.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/05-phase-discipline.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/06-multi-task.md" .claude/rules/
 cp "$SCRIPT_DIR/templates/.claude/rules/07-integrity.md" .claude/rules/
+
+# Retired core rules. Core rules are framework files that every upgrade overwrites,
+# so a rule dropped from templates/ has to be deleted here as well — otherwise the
+# old copy stays in every existing install indefinitely. The pre-upgrade backup in
+# .claude/.backup-* still holds it.
+#   02-before-edit.md — retired 2026-09-23: every item duplicated another rule or a
+#   trained default, and it loaded unconditionally although written as a per-file check.
+#   Only in upgrade mode: in append mode the project has never had cc-discipline,
+#   so a file by that name is the user's own.
+if [ "$INSTALL_MODE" = "upgrade" ]; then
+    rm -f .claude/rules/02-before-edit.md
+fi
 
 # ─── Copy stack-specific rules based on selection ───
 if [ ${#STACKS[@]} -gt 0 ] && [ -n "${STACKS[0]}" ]; then
@@ -321,9 +344,13 @@ else
         TEMP_SETTINGS=$(mktemp)
         MERGE_OK=false
 
+        # is_cc must name every hook this framework registers. It once omitted
+        # git-guard, so each jq upgrade kept the old git-guard entry and appended
+        # another; one install had accumulated eleven. With git-guard listed, the
+        # next upgrade filters every old entry out and adds exactly one back.
         if jq -s '
           .[0] as $e | .[1] as $t |
-          def is_cc: .hooks | any(.command | test("pre-edit-guard|streak-breaker|post-error-remind|session-start|phase-gate|action-counter"));
+          def is_cc: .hooks | any(.command | test("pre-edit-guard|streak-breaker|post-error-remind|session-start|phase-gate|action-counter|git-guard"));
           def merge($ev): (($e.hooks[$ev] // []) | map(select(is_cc | not))) + ($t.hooks[$ev] // []);
           $e * {
             hooks: (($e.hooks // {}) + {
@@ -640,6 +667,9 @@ fi
 if [ ! -f "docs/debug-log.md" ]; then
     cp "$SCRIPT_DIR/templates/docs/debug-log.md" docs/
 fi
+if [ ! -f "docs/todo.md" ]; then
+    cp "$SCRIPT_DIR/templates/docs/todo.md" docs/
+fi
 
 # ─── Install auto memory (symlink to .claude/memory/) ───
 echo -e "${GREEN}Installing auto memory...${NC}"
@@ -771,6 +801,7 @@ if [ "$INSTALL_MODE" = "fresh" ]; then
     echo -e "  ${GREEN}.claude/skills/${NC}              ← Skills (run 'npx cc-discipline status' to list)"
     echo -e "  ${GREEN}.claude/settings.json${NC}        ← Hooks configuration"
     echo -e "  ${GREEN}docs/progress.md${NC}             ← Progress log (maintained by Claude)"
+    echo -e "  ${GREEN}docs/todo.md${NC}                 ← Open work: Now / Later"
     echo -e "  ${GREEN}docs/debug-log.md${NC}            ← Debug log (maintained by Claude)"
     echo -e "  ${GREEN}.claude/memory/${NC}              ← Auto memory (symlinked, lives in repo)"
     echo ""
@@ -794,6 +825,7 @@ else
     echo -e "What was ${GREEN}NOT${NC} touched:"
     echo -e "  CLAUDE.md                    ← Your project info is safe"
     echo -e "  docs/progress.md             ← Your progress records are safe"
+    echo -e "  docs/todo.md                 ← Your open items are safe (created only if missing)"
     echo -e "  docs/debug-log.md            ← Your debug logs are safe"
     echo -e "  Your custom rules/agents     ← Untouched (we only add our files)"
     echo ""

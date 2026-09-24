@@ -32,7 +32,7 @@ fi
 # 2. Core rules
 echo ""
 echo "Core rules:"
-for i in 00 01 02 03 04 05 06 07; do
+for i in 00 01 03 04 05 06 07; do   # 02 retired 2026-09-23
     FILE=$(ls .claude/rules/${i}-*.md 2>/dev/null | head -1)
     if [ -n "$FILE" ]; then
         ok "$(basename "$FILE")"
@@ -60,23 +60,18 @@ done
 echo ""
 echo "Hook registration:"
 if [ -f ".claude/settings.json" ]; then
-    if command -v jq &>/dev/null; then
-        CONTENT=$(cat .claude/settings.json)
-        for hook in pre-edit-guard streak-breaker post-error-remind session-start phase-gate action-counter git-guard; do
-            if echo "$CONTENT" | grep -q "$hook"; then
-                ok "${hook} registered"
-            else
-                fail "${hook} NOT registered in settings.json"
-            fi
-        done
-    else
-        warn "jq not installed — cannot verify hook registration details"
-        if grep -q "pre-edit-guard" .claude/settings.json 2>/dev/null; then
-            ok "settings.json contains hook references"
+    # A text search is all this needs, so it runs the same with or without jq.
+    # The old jq-less branch looked only for pre-edit-guard, so an install whose
+    # settings.json never registered git-guard (possible after a jq-less upgrade,
+    # which leaves settings.json alone) was reported healthy.
+    CONTENT=$(cat .claude/settings.json)
+    for hook in pre-edit-guard streak-breaker post-error-remind session-start phase-gate action-counter git-guard; do
+        if echo "$CONTENT" | grep -q "$hook"; then
+            ok "${hook} registered"
         else
-            fail "settings.json doesn't reference any hooks"
+            fail "${hook} NOT registered in settings.json"
         fi
-    fi
+    done
 else
     fail "settings.json missing"
 fi
@@ -130,6 +125,11 @@ if [ -f "docs/progress.md" ]; then
 else
     warn "No docs/progress.md"
 fi
+if [ -f "docs/todo.md" ]; then
+    ok "docs/todo.md"
+else
+    warn "No docs/todo.md — run upgrade to create it"
+fi
 
 # Summary
 echo ""
@@ -143,3 +143,6 @@ else
     echo "Run 'npx cc-discipline upgrade' to fix missing files."
 fi
 echo ""
+
+# Non-zero when there are critical issues, so scripts and CI can act on the result.
+[ "$ISSUES" -eq 0 ] || exit 1

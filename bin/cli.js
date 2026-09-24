@@ -144,4 +144,9 @@ const result = spawnSync(bash, [unixScript, ...scriptArgs], {
     cwd: process.cwd(),
 });
 
-process.exit(result.status || 0);
+if (result.error) {
+    console.error(`cc-discipline: could not start bash (${result.error.code || result.error.message})`);
+    process.exit(1);
+}
+// status is null when bash was killed by a signal: a failure, not a success.
+process.exit(result.status === null ? 1 : result.status);
