@@ -6,9 +6,9 @@
 
 ## Current Status
 
-- **Shipped**: **v2.14.0 deployed** to all 25 installs from a local tarball (2026-09-24), verified functionally. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
+- **Shipped**: **v2.15.0 deployed** to every install from a local tarball (2026-09-24), verified functionally; pushed to GitHub. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
-- **2.14.0 (2026-09-24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md` for open work, batch 1 of the fixes from Codex's whole-repo review, git-guard rebuilt as one awk parser, and `/coplan` offering to run the external review. Committed and deployed; unpushed to GitHub and unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
+- **2.15.0 (2026-09-24)**: 2.14.0 (the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, `/coplan`'s review offer), plus the fixes from three field reports. Committed, pushed and deployed; unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
 - **Last updated**: 2026-09-24
 - **Skills (7)**: commit, coplan, evaluate, investigate, self-check, summary, think.
 - **Open work**: `docs/todo.md`. This file records what happened.
@@ -873,3 +873,25 @@ The install checks cover:
 - a kept skill, listed by the upgrade, by doctor and by status.
 
 This repo's installed copies are synced and pass too.
+
+### 2026-09-24 — v2.15.0 rolled out: 26 installs, one of them unplanned
+
+**How.**
+- **Package:** `npm pack` gave a 46-file package with sha256 `045a8372…`, identical on all three machines.
+- **Rehearsal:** each machine rehearsed 2.14.0 → 2.15.0 in a throwaway project and passed every check: version, a 7-entry hooks manifest, no attention block, five guard payloads (the two new behaviours included: a `cat >>` note heredoc passes, `stash drop` blocks), a stale-status note, and doctor.
+- **Rollout:** each install was upgraded with `npx -y --package=<tgz> cc-discipline upgrade`. This time each install's output was kept and its "Needs your attention" block printed verbatim.
+
+**Result.**
+- **26 installs:** MS-01 9, mac-mini 7, techhu-7940 10.
+- **Every install:** marker 2.15.0, upgrade exit 0, all five payloads decided correctly, git-guard registered once, and a 7-entry hooks manifest.
+- **Before the rollout,** HUB_Rev1_FW's progress.md got `<!-- cc-discipline: status-lines=160 -->` after its title, the user's choice. Its `## 当前态(2026-09-05)— …` is now recognised: 113 lines are injected.
+
+**The installer's report, in the field.**
+- **Replaced framework hooks:** one, the session-start in `HUB_Rev1_FW_wt_head`. It came from HUB's committed tree and reads 当前态; the installer named it and gave its backup path. This was the first real detection.
+- **Kept skills with a `.new` beside them:** `self-check` in most installs, `think` in five, and commit/self-check/summary/think in the two `GS_IC/designs/` installs.
+
+**My mistake: an install nobody approved was upgraded.** `HUB_Rev1_FW_wt_head` is a detached-HEAD worktree of HUB_Rev1_FW, created at 17:28, thirteen minutes before the rollout reached it. The rollout script enumerates installs live, while the user had approved the list from that morning's inventory. The worktree now holds 21 modified framework files and two new ones, uncommitted. If the HUB session made it as a clean reference checkout, it no longer is.
+- **The user's decision:** ask the HUB session first. The worktree is left untouched until then.
+- **Lesson** (now in CLAUDE.md → Rollout): re-inventory right before rolling out and compare with the approved list; ask about anything new.
+
+**A likely false alarm.** HUB's heading date, 2026-09-05, marks when its 当前态 convention began, not when the section was last replaced. The session-start therefore tags HUB's status "may be stale" in every session, because newer dated entries exist below it. Recorded in todo Later.

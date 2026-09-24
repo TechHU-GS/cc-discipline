@@ -5,10 +5,12 @@
 
 ## Now
 
-- [ ] Roll out 2.15.0 (the 2026-09-24 fixes; see progress.md) to the 25 installs from a local tarball, surfacing each install's "Needs your attention" block; add `<!-- cc-discipline: status-lines=160 -->` to HUB_Rev1_FW's progress.md (the user's choice); publish to npm once the token is rotated
+- [ ] `HUB_Rev1_FW_wt_head` on techhu-7940, a detached worktree created 17:28 on 2026-09-24, was upgraded to 2.15.0 unasked: 21 framework files modified and 2 added, uncommitted, with a backup in `.claude/.backup-20260924-174148/`. The user is asking the HUB session whether to restore it to HEAD or keep it; do nothing there until then.
+- [ ] Publish 2.15.0 to npm once the token is rotated: until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one
 
 ## Later
 
+- [ ] session-start takes a status section's date from its heading before a "Last updated" line, so HUB_Rev1_FW's `## 当前态(2026-09-05)` (the date the convention began) is flagged "may be stale" in every session. Let an explicit Last-updated line win, or ask HUB to date its heading — revisit: when the HUB session reports on 2.15.0, or when session-start is next edited.
 - [ ] git-guard gaps left out of the next release: `switch -f`/`--discard-changes`, `worktree remove --force`, `update-ref -d`, `checkout <commit> <path>` — revisit: after the next release, when each is one rule plus tests.
 - [ ] Move `/self-check`'s project-specific checks out of the framework's SKILL.md into a project-owned file, so a template change stops producing `SKILL.md.new` in every install that has any (about fifteen did in the 2.14.0 rollout) — revisit: after 2.15.0, or the next time the self-check template changes.
 - [ ] A rule that a subagent's findings are leads, not facts: verify the load-bearing ones before stating them (raised from HUB_Rev1_FW, 2026-09-24; in this repo a claude-code-guide agent once fabricated two citations) — revisit: with the held audit items.
