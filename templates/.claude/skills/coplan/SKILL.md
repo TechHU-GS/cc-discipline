@@ -47,7 +47,7 @@ Two rules for what belongs here:
 
 **"What did I check, and how current was the source?"** For every load-bearing fact you *did* verify, name the source with a line number and say how fresh it is. A stale source is more dangerous than an unchecked assumption, because the reviewer opens the same file and inherits the same error — that has happened here: a plan cited `RELEASE_NOTES.md:31`, the review cited the same line, and both were wrong together. Flag anything sourced from a comment, a changelog, or a doc rather than from code that runs.
 
-## Then stop
+## Then offer the review, and stop
 
 Report the path, then hand over a review request the user can send as-is. **A generic request produces a generic review** — what makes a review land is naming what to check and demanding a shape for the answer. Fill the bracketed parts from the plan you just wrote:
 
@@ -62,7 +62,9 @@ To have Codex review it:
 其余问题另列，不要展开成散文。
 ```
 
-**Do not run the review yourself** — that call belongs to the user. **Do not start implementing either**: writing a plan down is not approval to build it.
+Then, if this session has an external review command, such as `/codex:rescue` from the Codex plugin, end with one question: should you run that review now? On a yes (`go`, `do it`, `去做` or the like), invoke it with exactly the request you just showed. For `/codex:rescue`, add `--fresh`, so a new plan reaches a reviewer that has not formed conclusions in an earlier thread. If no such command is available, handing over the request is the end.
+
+**Do not run the review without that yes** — spending a review run is the user's call, and asking is how you leave it with them. **Do not start implementing either**: writing a plan down is not approval to build it, and neither is a yes to the review.
 
 ## When stacked after /think
 
