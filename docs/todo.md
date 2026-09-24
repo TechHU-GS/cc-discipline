@@ -5,7 +5,6 @@
 
 ## Now
 
-- [ ] Publish 2.15.1 to npm once the token is rotated: until then the registry's latest, 2.13.6, is OLDER than every install, and `npx cc-discipline@latest upgrade` would downgrade one
 
 ## Later
 
@@ -17,7 +16,7 @@
 - [ ] Install into four active repositories that have their own CLAUDE.md and `.claude/` but no cc-discipline: gsus-pipeline and frost-twin (MS-01), smpp-notif-gateway and gmp-platform (mac-mini). Held back by the user on 2026-09-24 — revisit: the next time work happens in each; review its existing config before appending.
 - [ ] Guard the PowerShell tool: git-guard is registered for `Bash` only and exits 0 for any other tool name, so git run through PowerShell — the primary shell on MS-01 — is never checked. Needs a PowerShell quoting mode in the parser (backtick escapes, `''`, no backslash escapes) and matcher `Bash|PowerShell`; jq-less upgrades never touch an existing settings.json, so MS-01's 10 installs need a scripted edit at rollout. Unverified: that the hook payload's `tool_name` is `PowerShell` — revisit: once the awk parser has shipped.
 - [ ] Explicit error handling for `init.sh`'s `cp` and `rm` steps on Windows, where `set -e` is off, so a partial failure cannot write the new version marker — revisit: when init.sh's install steps next change.
-- [ ] Rotate the npm token that was pasted in chat on 2026-06-05 — revisit: before the next `npm publish`. The highest-severity open item, and only the user can do it: anyone holding it can publish under this package name, which 25 installs pull with `npx @latest`.
+- [ ] Confirm the npm token pasted in chat on 2026-06-05 is revoked (npmjs.com → Access Tokens) — revisit: the next time you are on npmjs.com. Much less urgent since 2026-09-24: this machine's stored token was already rejected (401), and the account now requires two-factor authentication (a passkey) to publish, so that token alone can no longer publish — unless it was a granular token with 2FA bypass.
 - [ ] Held audit items: `01`'s phases and numeric rubric, `00` §2 and §6, `05` §5, and `03`'s "When tasks feel overwhelming" — revisit: after two to three weeks of dogfooding on Opus 5.5, or once the debug-log check below is done. Each has measured provenance on older models. If `01` changes, `self-check/SKILL.md:41` must change with it.
 - [ ] Check whether `docs/debug-log.md` in the 25 installs contains any hypothesis rows at all — revisit: before deciding the held audit items. If it never does, `01`'s procedure isn't being followed in practice.
 - [ ] Decide where new progress.md milestones go: here, 17 of 30 sit under `## Rule Ledger`, because entries are appended at the end of the file and the template ends with the Rule Ledger — revisit: before publishing the `docs/todo.md` change, since both touch the progress template.

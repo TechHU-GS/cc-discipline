@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- **Shipped**: **v2.15.1 deployed** to every install from a local tarball (2026-09-24), verified functionally; pushed to GitHub. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
+- **Shipped**: **v2.15.1**, published to npm (2026-09-24, `latest`) and deployed to all 25 approved installs, verified functionally. The npm tarball is byte-identical to the one rehearsed and deployed (shasum `46d05e3d…`).
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
 - **2.15.0 (2026-09-24)**: 2.14.0 (the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, `/coplan`'s review offer), plus the fixes from three field reports. Committed, pushed and deployed; unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
 - **Last updated**: 2026-09-24
@@ -920,3 +920,14 @@ This repo's installed copies are synced and pass too.
 - **The approved-list rule, first use:** the rollout script now takes the approved list, skips anything else and any detached linked worktree, and names both. It left `HUB_Rev1_FW_wt_head` alone.
 - **Result:** 25/25 approved installs are on 2.15.1, each passing the five guard payloads, with git-guard registered once.
 - **In the reporting projects:** mac-mini's ziiqii-geosense (status updated 2026-09-24) is no longer flagged; MS-01's older clone of it (2026-05-18) correctly is. HUB_Rev1_FW is still flagged from its heading date until it adds a "最后更新" line.
+
+**Published to npm the same day.**
+- **The first attempt stopped at login.** `npm whoami` returned 401, so the stored token was dead. After `! npm login`, `npm publish` returned E403: the account now needs two-factor authentication to publish.
+- **The user enabled 2FA with a passkey kept in Bitwarden.** A passkey has no six-digit code, and `npm publish` run through `!` answered EOTP, because that shell is not interactive and npm will not open its browser step there.
+- **Run from a real terminal, it published.** 2.15.1 became visible after about 90 s, with `latest` = 2.15.1.
+- **The tarball matches.** Its shasum is `46d05e3d…`, the same bytes as the tarball rehearsed and rolled out.
+- **Checked with `npx -y --prefer-online cc-discipline@latest --version`,** outside the repo: v2.15.1. An `@latest upgrade` no longer downgrades anyone.
+
+**Is anyone else using it?** Asked the same day; nothing shows it.
+- **npm downloads:** 4,629 since 2026-03-12. The spikes fall on our own release and rollout days (416 on 08-28, 270 on 09-02), which include mirrors and scanners fetching each new version.
+- **GitHub:** no stars, forks, issues or PRs. In 14 days there were 11 views from 7 people and 16 clones, the clones mostly crawlers, plus one visit each from Google and Bing.
