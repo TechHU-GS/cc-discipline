@@ -72,6 +72,11 @@ for skill_dir in .claude/skills/*/; do
 done
 SKILL_COUNT=$(echo "$SKILLS" | wc -w | tr -d ' ')
 echo -e "${GREEN}${SKILL_COUNT}${NC} (${SKILLS% })"
+PENDING=""
+for f in .claude/skills/*/SKILL.md.new; do
+    [ -f "$f" ] && PENDING="$PENDING /$(basename "$(dirname "$f")")"
+done
+[ -n "$PENDING" ] && echo -e "  ${YELLOW}New templates waiting to be merged:${NC}${PENDING} (see: npx cc-discipline doctor)"
 
 # Settings
 echo -n "Settings: "

@@ -1,0 +1,26 @@
+# sha256 of every version of each framework hook ever committed to templates/,
+# up to 2.14.0, CRs stripped before hashing. init.sh uses it to tell an older
+# shipped hook from a locally modified one in installs that predate the hooks
+# manifest. Frozen: installs from 2.15.0 on record what they got in
+# .claude/.cc-discipline-hooks.manifest instead. Generated 2026-09-24.
+action-counter.sh sha256:2c3b514017c528771c78997c69db454e2b5dcdbcb813d70f4a18392d4da02f89
+action-counter.sh sha256:6befc0b53a4f245fa4b9cbbadc4fca4c524ea66a8d000cc7e388363a906509a2
+action-counter.sh sha256:9a213ff10ade78193e761f4443c51cc9d8a5242525a6177f0d084d81fa256070
+git-guard.sh sha256:11a210bebccb6c82ce7e42de4a29d8fb10507722cff1d5a2346ebfc1863a5bb0
+git-guard.sh sha256:70fe3e335b6b142bb193912b76735386553d8187ddf2d934f1f49a7e949d424e
+git-guard.sh sha256:c391e51a8c0c20a7278695aeee4c46ed464614dccdb1acc5ca7728221ae0c84c
+git-guard.sh sha256:cb650c0532cd6bb6595ddff375195ad2338df422172663769dccdcbf41b3c354
+git-guard.sh sha256:dc55636e9847cc76f31c1ced71b5b6c7ea2ba9a8380347a8fca5332e162e8e6d
+phase-gate.sh sha256:7cbd2ec05d5ab9d1e2919c327a975a1b082ef27684e5d0effdf664f17efbedff
+post-error-remind.sh sha256:389ab860dfb217cd24253e85d28add3961155158961beffaabb9e2e6fa725c1f
+post-error-remind.sh sha256:83b9cbb836af45889bd06e62feebc71a44c741c0cc8b40d8dff2e6d7bf21c7a6
+pre-edit-guard.sh sha256:07c8a3b9e2c87feff1d11dcb195175cf3d6f421968dea17981e9fc573e9caf24
+pre-edit-guard.sh sha256:3be58e3f0a62842ac44a20581275a9bb3cc597439db2e16602bb87bcf3762fb9
+pre-edit-guard.sh sha256:6daf162b6c9835e80960f873d0f9b514065fe726f70dda7b524dbc9cf3675f52
+pre-edit-guard.sh sha256:ae88735efb05dab465f40a1e6bcf7b808fc8dc14d7695aad0e9f4a273d7b5fb8
+pre-edit-guard.sh sha256:c11aaf1da9fab45501478079ed3937321d2d6213c84d374671e5bd6699d08738
+session-start.sh sha256:5d147dae576fe2443b13410849f97bc7edf0d6c92ad26ddf1fd5b1ef32055890
+session-start.sh sha256:60dc913a7d35f6c119ee465730e00f42deabd057e68c935f96a00511663feaaa
+session-start.sh sha256:7cd80aa4c1873851a4c9c0797369bfa9bc1fbce12672ce830748ba8d469977d3
+streak-breaker.sh sha256:7782280af6c40b9dfd58c99f7c7bcffc58f53e247edfab242d5b5454a56cf79a
+streak-breaker.sh sha256:cb667aee973a72380958241e349359b07ea7711b405abdf68ab626ef5211f1f4

@@ -304,15 +304,137 @@ if [ ${#STACKS[@]} -gt 0 ] && [ -n "${STACKS[0]}" ]; then
     done
 fi
 
+# ─── Content hashing (skills and hooks) ───
+# Two properties matter here, and both were learned the hard way.
+#
+# 1. Record WHICH algorithm produced a digest. The fallback below resolves
+#    differently depending on what is installed, so a manifest holding a bare
+#    digest silently mis-compares the moment tool availability changes — every
+#    hash mismatches, every retired skill looks user-modified, and the
+#    retirement pass does nothing. (fixed 2026-08-28, before 2.13.0 shipped.)
+#
+# 2. Hash line-ending-NORMALIZED content, not raw bytes. Projects that commit
+#    .claude/ and run with core.autocrlf=true and no .gitattributes get their
+#    SKILL.md rewritten to CRLF by git on checkout. Byte-exact comparison then
+#    reports every skill as modified, with the same two consequences as above
+#    plus a .new file dropped beside every skill on every upgrade. Measured on
+#    one install: the file differed from its manifest entry by exactly 44 bytes
+#    across 44 lines, and matched perfectly once normalized. (fixed 2026-08-28)
+#
+# sha256sum and `shasum -a 256` produce identical digests, so both label sha256.
+
+_cc_digest_with() {   # $1=tool  $2=file  $3=norm|raw  ->  bare digest
+    if [ "$3" = "norm" ]; then
+        case "$1" in
+            sha256sum) sed 's/\r$//' "$2" | sha256sum | cut -d' ' -f1 ;;
+            shasum)    sed 's/\r$//' "$2" | shasum -a 256 | cut -d' ' -f1 ;;
+            md5sum)    sed 's/\r$//' "$2" | md5sum | cut -d' ' -f1 ;;
+            md5)       sed 's/\r$//' "$2" | md5 -q ;;
+            cksum)     sed 's/\r$//' "$2" | cksum | cut -d' ' -f1 ;;
+        esac
+    else
+        case "$1" in
+            sha256sum) sha256sum "$2" | cut -d' ' -f1 ;;
+            shasum)    shasum -a 256 "$2" | cut -d' ' -f1 ;;
+            md5sum)    md5sum "$2" | cut -d' ' -f1 ;;
+            md5)       md5 -q "$2" ;;
+            cksum)     cksum "$2" | cut -d' ' -f1 ;;
+        esac
+    fi
+}
+
+_cc_algo() {
+    for _a in sha256sum shasum md5sum md5 cksum; do
+        command -v "$_a" >/dev/null 2>&1 && { echo "$_a"; return; }
+    done
+    echo cksum
+}
+
+_cc_label() {
+    case "$1" in sha256sum|shasum) echo sha256 ;; md5sum|md5) echo md5 ;; *) echo cksum ;; esac
+}
+
+# What gets written into the manifest: normalized, algorithm-labelled.
+_cc_hash() {
+    _a=$(_cc_algo)
+    echo "$(_cc_label "$_a"):$(_cc_digest_with "$_a" "$1" norm)"
+}
+
+# True when manifest entry $2 still describes file $1. Accepts, in order of how
+# the entry was most likely written:
+#   - "<algo>:<digest>" from 2.13.1+, normalized
+#   - "<algo>:<digest>" from 2.13.0, byte-exact
+#   - a bare digest from 2.12.2/2.12.3, algorithm and normalization both unknown
+# Anything that matches under any of those readings counts as pristine. Being
+# permissive here is the safe direction: a false "modified" freezes a skill in
+# place forever and buries the user in .new files, while a false "pristine" can
+# only overwrite a file that is byte-identical to what we would install anyway.
+_cc_hash_matches() {
+    _f="$1"; _rec="$2"
+    # The manifest itself has no file extension, so .gitattributes rules keyed on
+    # *.sh/*.md/*.json never cover it and git may hand it back with CRLF. A
+    # trailing CR then rides along in the recorded digest and every comparison
+    # fails — the same bug this function exists to fix, one level up. Strip it.
+    _rec=${_rec%$'\r'}
+    [ -n "$_rec" ] || return 1
+    [ -f "$_f" ] || return 1
+    case "$_rec" in
+        *:*)
+            _rl=${_rec%%:*}; _rd=${_rec#*:}
+            case "$_rl" in
+                sha256) _cands="sha256sum shasum" ;;
+                md5)    _cands="md5sum md5" ;;
+                *)      _cands="cksum" ;;
+            esac
+            for _al in $_cands; do
+                command -v "$_al" >/dev/null 2>&1 || continue
+                [ "$(_cc_digest_with "$_al" "$_f" norm)" = "$_rd" ] && return 0
+                [ "$(_cc_digest_with "$_al" "$_f" raw)" = "$_rd" ] && return 0
+            done
+            return 1
+            ;;
+    esac
+    for _al in sha256sum shasum md5sum md5 cksum; do
+        command -v "$_al" >/dev/null 2>&1 || continue
+        [ "$(_cc_digest_with "$_al" "$_f" norm)" = "$_rec" ] && return 0
+        [ "$(_cc_digest_with "$_al" "$_f" raw)" = "$_rec" ] && return 0
+    done
+    return 1
+}
+
 # ─── Install hooks ───
+# Framework hooks are always replaced. They are enforcement code, and a
+# customized copy left in place would keep whatever holes the new version
+# closes: a stale git-guard keeps every bypass fixed since. But a local change
+# must not vanish silently, as HUB_Rev1_FW's session-start did in the 2.14.0
+# rollout. A hook counts as locally modified when it matches none of: the
+# template being installed, the hash recorded when we last installed it, or any
+# template version shipped up to 2.14.0 (lib/hook-hashes, for installs that
+# predate the hooks manifest). The backup made above keeps the old copy, and
+# the end of this script lists what was replaced.
 echo -e "${GREEN}Installing hooks...${NC}"
-cp "$SCRIPT_DIR/templates/.claude/hooks/pre-edit-guard.sh" .claude/hooks/
-cp "$SCRIPT_DIR/templates/.claude/hooks/post-error-remind.sh" .claude/hooks/
-cp "$SCRIPT_DIR/templates/.claude/hooks/streak-breaker.sh" .claude/hooks/
-cp "$SCRIPT_DIR/templates/.claude/hooks/session-start.sh" .claude/hooks/
-cp "$SCRIPT_DIR/templates/.claude/hooks/phase-gate.sh" .claude/hooks/
-cp "$SCRIPT_DIR/templates/.claude/hooks/git-guard.sh" .claude/hooks/
-cp "$SCRIPT_DIR/templates/.claude/hooks/action-counter.sh" .claude/hooks/
+HOOKS_MANIFEST=".claude/.cc-discipline-hooks.manifest"
+KNOWN_HOOK_HASHES="$SCRIPT_DIR/lib/hook-hashes"
+_cc_hook_pristine() {   # $1=installed file  $2=template  $3=hook file name
+    _cc_hash_matches "$1" "$(_cc_hash "$2")" && return 0
+    _hrec=$(grep "^$3 " "$HOOKS_MANIFEST" 2>/dev/null | head -1 | cut -d' ' -f2)
+    [ -n "$_hrec" ] && _cc_hash_matches "$1" "$_hrec" && return 0
+    [ -f "$KNOWN_HOOK_HASHES" ] || return 1
+    _ha=$(_cc_algo)
+    [ "$(_cc_label "$_ha")" = sha256 ] || return 1
+    grep -q "^$3 sha256:$(_cc_digest_with "$_ha" "$1" norm)\$" "$KNOWN_HOOK_HASHES"
+}
+MODIFIED_HOOKS=""
+NEW_HOOKS_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.hooks-manifest.tmp")
+for hook in pre-edit-guard post-error-remind streak-breaker session-start phase-gate git-guard action-counter; do
+    if [ -f ".claude/hooks/$hook.sh" ] && \
+       ! _cc_hook_pristine ".claude/hooks/$hook.sh" "$SCRIPT_DIR/templates/.claude/hooks/$hook.sh" "$hook.sh"; then
+        MODIFIED_HOOKS="$MODIFIED_HOOKS $hook.sh"
+    fi
+    cp "$SCRIPT_DIR/templates/.claude/hooks/$hook.sh" .claude/hooks/
+    echo "$hook.sh $(_cc_hash ".claude/hooks/$hook.sh")" >> "$NEW_HOOKS_MANIFEST"
+done
+mv "$NEW_HOOKS_MANIFEST" "$HOOKS_MANIFEST"
 chmod +x .claude/hooks/*.sh
 
 # ─── Check jq availability ───
@@ -429,104 +551,6 @@ KEPT_RETIRED=""
 # "the user wrote it themselves".
 OLD_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.skills-manifest.old")
 [ -f "$SKILLS_MANIFEST" ] && cp "$SKILLS_MANIFEST" "$OLD_MANIFEST"
-
-# ─── Skill content hashing ───
-# Two properties matter here, and both were learned the hard way.
-#
-# 1. Record WHICH algorithm produced a digest. The fallback below resolves
-#    differently depending on what is installed, so a manifest holding a bare
-#    digest silently mis-compares the moment tool availability changes — every
-#    hash mismatches, every retired skill looks user-modified, and the
-#    retirement pass does nothing. (fixed 2026-08-28, before 2.13.0 shipped.)
-#
-# 2. Hash line-ending-NORMALIZED content, not raw bytes. Projects that commit
-#    .claude/ and run with core.autocrlf=true and no .gitattributes get their
-#    SKILL.md rewritten to CRLF by git on checkout. Byte-exact comparison then
-#    reports every skill as modified, with the same two consequences as above
-#    plus a .new file dropped beside every skill on every upgrade. Measured on
-#    one install: the file differed from its manifest entry by exactly 44 bytes
-#    across 44 lines, and matched perfectly once normalized. (fixed 2026-08-28)
-#
-# sha256sum and `shasum -a 256` produce identical digests, so both label sha256.
-
-_cc_digest_with() {   # $1=tool  $2=file  $3=norm|raw  ->  bare digest
-    if [ "$3" = "norm" ]; then
-        case "$1" in
-            sha256sum) sed 's/\r$//' "$2" | sha256sum | cut -d' ' -f1 ;;
-            shasum)    sed 's/\r$//' "$2" | shasum -a 256 | cut -d' ' -f1 ;;
-            md5sum)    sed 's/\r$//' "$2" | md5sum | cut -d' ' -f1 ;;
-            md5)       sed 's/\r$//' "$2" | md5 -q ;;
-            cksum)     sed 's/\r$//' "$2" | cksum | cut -d' ' -f1 ;;
-        esac
-    else
-        case "$1" in
-            sha256sum) sha256sum "$2" | cut -d' ' -f1 ;;
-            shasum)    shasum -a 256 "$2" | cut -d' ' -f1 ;;
-            md5sum)    md5sum "$2" | cut -d' ' -f1 ;;
-            md5)       md5 -q "$2" ;;
-            cksum)     cksum "$2" | cut -d' ' -f1 ;;
-        esac
-    fi
-}
-
-_cc_algo() {
-    for _a in sha256sum shasum md5sum md5 cksum; do
-        command -v "$_a" >/dev/null 2>&1 && { echo "$_a"; return; }
-    done
-    echo cksum
-}
-
-_cc_label() {
-    case "$1" in sha256sum|shasum) echo sha256 ;; md5sum|md5) echo md5 ;; *) echo cksum ;; esac
-}
-
-# What gets written into the manifest: normalized, algorithm-labelled.
-_cc_hash() {
-    _a=$(_cc_algo)
-    echo "$(_cc_label "$_a"):$(_cc_digest_with "$_a" "$1" norm)"
-}
-
-# True when manifest entry $2 still describes file $1. Accepts, in order of how
-# the entry was most likely written:
-#   - "<algo>:<digest>" from 2.13.1+, normalized
-#   - "<algo>:<digest>" from 2.13.0, byte-exact
-#   - a bare digest from 2.12.2/2.12.3, algorithm and normalization both unknown
-# Anything that matches under any of those readings counts as pristine. Being
-# permissive here is the safe direction: a false "modified" freezes a skill in
-# place forever and buries the user in .new files, while a false "pristine" can
-# only overwrite a file that is byte-identical to what we would install anyway.
-_cc_hash_matches() {
-    _f="$1"; _rec="$2"
-    # The manifest itself has no file extension, so .gitattributes rules keyed on
-    # *.sh/*.md/*.json never cover it and git may hand it back with CRLF. A
-    # trailing CR then rides along in the recorded digest and every comparison
-    # fails — the same bug this function exists to fix, one level up. Strip it.
-    _rec=${_rec%$'\r'}
-    [ -n "$_rec" ] || return 1
-    [ -f "$_f" ] || return 1
-    case "$_rec" in
-        *:*)
-            _rl=${_rec%%:*}; _rd=${_rec#*:}
-            case "$_rl" in
-                sha256) _cands="sha256sum shasum" ;;
-                md5)    _cands="md5sum md5" ;;
-                *)      _cands="cksum" ;;
-            esac
-            for _al in $_cands; do
-                command -v "$_al" >/dev/null 2>&1 || continue
-                [ "$(_cc_digest_with "$_al" "$_f" norm)" = "$_rd" ] && return 0
-                [ "$(_cc_digest_with "$_al" "$_f" raw)" = "$_rd" ] && return 0
-            done
-            return 1
-            ;;
-    esac
-    for _al in sha256sum shasum md5sum md5 cksum; do
-        command -v "$_al" >/dev/null 2>&1 || continue
-        [ "$(_cc_digest_with "$_al" "$_f" norm)" = "$_rec" ] && return 0
-        [ "$(_cc_digest_with "$_al" "$_f" raw)" = "$_rec" ] && return 0
-    done
-    return 1
-}
 
 for skill_dir in "$SCRIPT_DIR"/templates/.claude/skills/*/; do
     [ -d "$skill_dir" ] || continue
@@ -791,6 +815,23 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║  Setup complete!                              ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
+
+# Anything the user has to act on goes here, where it cannot scroll past
+# unseen. Rollouts that capture this output must surface these lines too.
+if [ -n "$MODIFIED_HOOKS" ] || [ -n "$PRESERVED_SKILLS" ]; then
+    echo -e "${YELLOW}Needs your attention:${NC}"
+    if [ -n "$MODIFIED_HOOKS" ]; then
+        echo -e "  ${YELLOW}Framework hooks with local changes were REPLACED:${NC}$MODIFIED_HOOKS"
+        echo "    Your versions are in ${BACKUP_DIR}/hooks/"
+        echo "    Framework hooks are overwritten on every upgrade. Keep project-specific"
+        echo "    behaviour in a hook of your own: its own file, registered in settings.json."
+    fi
+    if [ -n "$PRESERVED_SKILLS" ]; then
+        echo -e "  ${YELLOW}Skills you edited were kept; the new templates wait beside them:${NC}${PRESERVED_SKILLS}"
+        echo "    Compare: diff .claude/skills/<name>/SKILL.md{,.new}"
+    fi
+    echo ""
+fi
 
 if [ "$INSTALL_MODE" = "fresh" ]; then
     echo -e "Created files:"

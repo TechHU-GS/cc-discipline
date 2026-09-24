@@ -97,6 +97,13 @@ for skill_dir in .claude/skills/*/; do
     SKILL_FOUND=$((SKILL_FOUND + 1))
 done
 [ "$SKILL_FOUND" -eq 0 ] && warn "No skills installed (optional)"
+# A skill the user edited is kept on upgrade and the new template is written
+# beside it. Nothing else reminds anyone that it is waiting.
+PENDING=""
+for f in .claude/skills/*/SKILL.md.new; do
+    [ -f "$f" ] && PENDING="$PENDING $(basename "$(dirname "$f")")"
+done
+[ -n "$PENDING" ] && warn "New skill templates waiting to be merged:$PENDING — diff .claude/skills/<name>/SKILL.md{,.new}"
 
 # 7. jq
 echo ""
