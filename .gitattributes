@@ -20,3 +20,8 @@
 # .gitattributes risks every rule above parsing as "eol=lf<CR>" and silently
 # doing nothing -- the same shape as the v2.13.2 manifest bug one level up.
 .gitattributes text eol=lf
+# Also extensionless: the frozen hash list init.sh greps line by line, and the
+# hooks manifest (same shape as the skills one). A CR at the end of a line makes
+# every "is this a shipped hook?" check fail and reports every hook as modified.
+lib/hook-hashes text eol=lf
+.cc-discipline-hooks.manifest text eol=lf

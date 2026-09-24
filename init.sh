@@ -422,7 +422,8 @@ _cc_hook_pristine() {   # $1=installed file  $2=template  $3=hook file name
     [ -f "$KNOWN_HOOK_HASHES" ] || return 1
     _ha=$(_cc_algo)
     [ "$(_cc_label "$_ha")" = sha256 ] || return 1
-    grep -q "^$3 sha256:$(_cc_digest_with "$_ha" "$1" norm)\$" "$KNOWN_HOOK_HASHES"
+    # CRs stripped first: a CRLF checkout of this list must not flag every hook
+    tr -d '\r' < "$KNOWN_HOOK_HASHES" | grep -q "^$3 sha256:$(_cc_digest_with "$_ha" "$1" norm)\$"
 }
 MODIFIED_HOOKS=""
 NEW_HOOKS_MANIFEST=$(mktemp 2>/dev/null || echo ".claude/.hooks-manifest.tmp")

@@ -164,7 +164,7 @@ Four separate failures in one session came from this family. Prefer Python with 
 ### Release
 
 - **Version lives only in `package.json`.** init.sh reads it through the cli.js env var; no hardcoded versions anywhere.
-- **`.gitattributes` forces `eol=lf`** for `*.sh`, `*.md`, `*.json`, `*.js` and the four extensionless files: `.cc-discipline-version`, `.cc-discipline-skills.manifest`, `.gitignore`, and `.gitattributes` itself. **`npm publish` packs the WORKING TREE, not git**, so a clean `git show` proves nothing. Verify:
+- **`.gitattributes` forces `eol=lf`** for `*.sh`, `*.md`, `*.json`, `*.js` and the six extensionless files: `.cc-discipline-version`, `.cc-discipline-skills.manifest`, `.cc-discipline-hooks.manifest`, `lib/hook-hashes`, `.gitignore`, and `.gitattributes` itself. **A new extensionless file needs its own line** — `lib/hook-hashes` shipped without one and git warned it would become CRLF on the next checkout, which would have reported every old hook as modified. **`npm publish` packs the WORKING TREE, not git**, so a clean `git show` proves nothing. Verify:
   ```bash
   find . -name node_modules -prune -o -name .git -prune -o -type f \
     \( -name '*.sh' -o -name '*.md' -o -name '*.json' -o -name '*.js' \) -print \
