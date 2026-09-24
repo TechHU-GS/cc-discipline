@@ -9,7 +9,7 @@
 - **Shipped**: **v2.14.0 deployed** to all 25 installs from a local tarball (2026-09-24), verified functionally. **Not on npm**: the registry's latest is still 2.13.6, so `npx cc-discipline@latest upgrade` would DOWNGRADE an install. Publish once the npm token is rotated.
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
 - **2.14.0 (2026-09-24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md` for open work, batch 1 of the fixes from Codex's whole-repo review, git-guard rebuilt as one awk parser, and `/coplan` offering to run the external review. Committed and deployed; unpushed to GitHub and unpublished on npm. See the 2026-09-23 and 2026-09-24 entries.
-- **Last updated**: 2026-09-23
+- **Last updated**: 2026-09-24
 - **Skills (7)**: commit, coplan, evaluate, investigate, self-check, summary, think.
 - **Open work**: `docs/todo.md`. This file records what happened.
 - **Published history**: v2.10.1 … v2.13.6.
@@ -758,4 +758,118 @@ All 5 cases reproduced here. **The pre-rewrite hook behaves identically on every
 - **`~/.claude/CLAUDE.md` on all three machines** now matches the 2.14.0 `global/CLAUDE.md`:
   - each copy had been identical to the old template, so exactly three lines changed in Context Hygiene: the delegation line, and the two lines that now mention todo.md;
   - each machine was backed up before writing; the file read back matched byte for byte, and the diff against the backup showed only those three lines;
-  - line endings are LF on all three. An earlier count had claimed CRLF, but `$''` had not expanded and `grep -c` was counting every line.
+  - line endings are LF on all three. An earlier count had claimed CRLF, but `$'\r'` had not expanded and `grep -c` was counting every line.
+
+### 2026-09-24 — First field report on 2.14.0 (HUB_Rev1_FW, techhu-7940)
+
+**The report.** A session in HUB_Rev1_FW sent six observations and asked whether Claude Code had been upgraded along with cc-discipline, because its Bash tool died close to the rollout.
+
+**The Bash tool.** Not cc-discipline, and Claude Code was not touched by the rollout:
+- the rollout ran `cc-discipline upgrade` in project directories, and `--auto` skips `~/.claude/settings.json` (`init.sh:745-748`);
+- Claude Code on techhu-7940 updated itself to 2.1.281 at 06:29 (timestamps in its `versions` directory), nine and a half hours before HUB was upgraded at 15:57:00;
+- the symptom matches anthropics/claude-code#95009, open since 2026-09-17.
+
+**The six observations, checked.**
+- **#1 is a real regression caused by the rollout.** HUB's session-start had been customized on 2026-09-05, and committed there, to inject its `## 当前态` section (up to 160 lines). 2.14.0 overwrote it. The new hook only recognises a heading that is exactly `## Current Status`, and gs-perception and analog-trial use suffixed headings it misses too.
+- **#2 is true of old and new installers alike.** The seven framework hooks are always overwritten, with a backup and no warning, while skills are conffiles. HUB's was the only customized framework hook in the fleet. My rollout checked skills for `.new` but never checked hooks — recorded as a Rollout pitfall.
+- **#3, #4 and #6 are old.** #3 and #4 are now in todo.md Later; #6 was already there.
+- **#5 is not ours.** It is the Claude Code bug above.
+
+**Decision.** 2.14.1 fixes #1 and #2, starting with `/think`. HUB stays as it is until then, by the user's choice.
+
+### 2026-09-24 — Second field report on 2.14.0 (ziiqii-geosense), verified
+
+Each git-guard case was run against the 2.14.0 hook and the 2.13.6 one; the session-start cases were reproduced in a temp dir and on MS-01's ziiqii-geosense.
+
+**Introduced by 2.14.0:**
+- **The git-guard work queue overflows on long markdown.**
+  - Every backtick code span containing "git" is lifted and queued, so a note with more than 200 such spans overflows the queue (QMAX 200).
+  - The coarse fallback then blocks on "git…push" anywhere in the payload, and reports "could not parse".
+  - Reproduced: 110 lines of `git log` / `git push` spans are blocked by 2.14.0 and allowed by 2.13.6.
+  - This is what bit the real append to progress.md.
+- **session-start ① — code fences.** A `## ` line inside a code fence ends the status section, and the injection keeps a dangling fence line.
+- **session-start ② — the Later count includes indented sub-items.** One item with two sub-items reports "3".
+- **session-start ③ — an unchecked claim.** "each with a condition for when to revisit it" is hardcoded (`session-start.sh:93`); nothing checks it.
+- **session-start ⑤ — a stale Current Status is injected verbatim.** In ziiqii-geosense the section is at line 701 of 8465, says "Last updated: 2026-05-18", and runs on into an unrelated `### Push #3 (2026-04-29)` subsection, since only `## ` ends a section. The newest entry, at the end of the file, is from 2026-09-23. The old `tail -20` showed that recent end.
+
+**Not new:**
+- **git-guard misses, the same in 2.13.6.** `checkout HEAD~1 <path>`, `switch -f`, `stash drop`/`clear` (all already in todo Later) and two new ones: `worktree remove --force` and `update-ref -d`.
+- **Blocking prose in quoted heredoc bodies, and grep/echo arguments.** Blocked in 2.13.6 too; this is the documented CLAUDE.md "do not fix" heredoc behaviour, now reported as friction.
+
+**The rollout's fault, not init.sh's.** init.sh does print "Locally modified skills were not overwritten…" with diff and mv hints (`init.sh:630-634`). My rollout wrote that output to a log and deleted the log on success, so nobody saw it. doctor and status never report pending `.new` files either.
+
+Collecting reports from more installs before deciding 2.14.1's scope; the user asked to wait.
+
+### 2026-09-24 — Third field report on 2.14.0 (techhu-devices), verified
+
+Each git-guard case was run against the 2.14.0 hook and the 2.13.6 one.
+
+**git-guard:**
+- **Heredoc bodies are scanned as code — true in both versions.**
+  - `cat >> docs/progress.md <<'EOF'` with prose that names `git reset --hard`, and `git commit -F - <<'EOF'`, are blocked.
+  - `bash <<'EOF'` is blocked, which is correct, and the same text passes inside `-m "…"`.
+  - This is the second of three reports to raise it: appending pitfall notes to progress.md is a daily pattern, and those notes name the commands to avoid.
+  - Proposal: a heredoc body is code only when an interpreter consumes it.
+  - That rule would still block this repo's own habit: a `python - <<'PY'` script whose string literals name a destructive command was blocked while this very entry was being written — an interpreter-fed heredoc, so correctly treated as code.
+- **`git stash drop` is allowed — true in both versions.** It is also inconsistent with git-guard's own hint for `reset --hard`, "git stash && git reset" (`git-guard.sh:430`), which makes the stash the backup. The second report to ask for `stash drop`/`clear`.
+- **The shipped header points at a file installs do not have.** `git-guard.sh:33` says "Test: bash tests/git-guard-matrix.sh", which is new in 2.14.0; `tests/` is not in package.json `files`. `pre-edit-guard.sh:27` has the same kind of reference, from earlier.
+- **Inline test cases are blocked.** This is by design (quoted text is rescanned); the suggestion is only to document "write cases to a file".
+
+**Positive:**
+- **Injecting Current Status exposed a status three weeks stale** that `tail -20` had hidden behind the Key Decisions table. That is the opposite reading of the ziiqii-geosense complaint; showing the section's "Last updated" date with a staleness note would serve both.
+- **The `.new` and manifest handling** worked, and the merge was easy.
+- **§5c's first run** found more than ten open items still scattered in progress.md.
+
+### 2026-09-24 — 2.15.0: fixes from three field reports, verified on three awks (not committed)
+
+**Scope.** The user decided it from the three verified field reports: regressions A1–A8, plus B1–B4, older problems that several reports hit. Every change came tests first. It was planned as 2.14.1 and released as **2.15.0**, because git-guard's behaviour changes: quoted-heredoc notes now pass, and `stash drop` now blocks.
+
+**session-start.**
+- **Status headings** match by prefix, and `当前态` and `当前状态` count as well as `Current Status`. The heading must be followed by nothing, or by a character that is not a letter or digit.
+- **Code fences.** A `## ` inside a fence is content, not a heading.
+- **Staleness.** The status date comes from its heading or its "Last updated" line. When a newer dated heading exists, or the date is over 14 days old, a note says the status may be stale. The ziiqii-geosense complaint and the techhu-devices praise asked for the same thing.
+- **Status length.** `<!-- cc-discipline: status-lines=N -->` sets how many lines are injected (1–400; the default is 15).
+- **Later items.** Only top-level items are counted. "Each with a revisit condition" is said only when every item has one; otherwise the hook says how many lack one.
+- **One awk pass per file**, with its output parsed by bash builtins: about 420ms against 2.14.0's ~900ms (side by side, MS-01).
+
+**git-guard.**
+- **Heredoc bodies.** They are cut out in the lift pass, which now tracks quotes outside substitutions. A body is data only if all of these hold:
+  - it feeds `cat`, `tee` or `git commit -F -`;
+  - it does not write a script (`x.sh`, `.git/hooks/`, `bin/`);
+  - it pipes only into sinks or plain filters;
+  - it sits in the command Claude typed;
+  - nothing in the command runs an interpreter, a `./path` or a script, and there is no `<(`/`>(`;
+  - the two passes agree on the number of heredocs.
+
+  Unquoted delimiters still have their substitutions lifted, because they expand.
+- **This goes further than the user's wording.** The user's choice was "only heredocs fed to an interpreter are code". I implemented an allowlist of data sinks instead, which handles every reported case the same way and treats unknown commands as code.
+- **A hole my own review found.** Writing a script without running it (`cat > x.sh <<EOF`) would have passed, so script targets are code. Four cases were added for it.
+- **Work queue:** deduplicated, and QMAX raised to 1000.
+- **`stash drop`/`clear` are blocked.** git-guard's own hint for `reset --hard` makes the stash the backup.
+- **Backticks** the lift pass reads as quoted still split commands in the tokenizer.
+- **Hook headers** no longer point at the unpackaged `tests/`; pre-edit-guard's too.
+
+**The installer.**
+- **Modified framework hooks** are detected through a new `.claude/.cc-discipline-hooks.manifest`, backed by `lib/hook-hashes`: 21 historical template versions, frozen. They are still replaced, and listed under "Needs your attention" with their backup path, right below "Setup complete!", together with any kept skills.
+- **doctor and status** list the `SKILL.md.new` files still waiting to be merged.
+
+**A bug found on the way.** I named a gawk built-in (`RT`) as an array. gawk died on every command, the coarse fallback blocked the five PASS cases that name guarded commands, and the matrix caught it. It is now a Hooks pitfall.
+
+**Verified.** Each suite passes on MS-01 (gawk 5.0.0, no jq), mac-mini (BSD awk 20200816, bash 3.2, jq) and techhu-7940 Git Bash (gawk 5.3.2, no jq):
+
+| Suite | Result |
+|---|---|
+| git-guard matrix | 149/149 |
+| pre-edit-guard matrix | 21/21 |
+| session-start matrix | 57/57 |
+| install checks | 13/13 |
+
+The install checks cover:
+- an unmodified 2.14.0 install, with no report and a 7-entry hooks manifest;
+- an edited session-start, reported with its backup path, while the other hooks are not reported;
+- no report on the next upgrade;
+- a CRLF hook, not reported;
+- a 2.13.6 install from the registry, recognised as shipped;
+- a kept skill, listed by the upgrade, by doctor and by status.
+
+This repo's installed copies are synced and pass too.

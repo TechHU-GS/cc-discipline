@@ -22,7 +22,8 @@
 ├── lib/
 │   ├── status.sh        ← `cc-discipline status` command
 │   ├── doctor.sh        ← `cc-discipline doctor` command
-│   └── stack-remove.sh  ← `cc-discipline remove-stack` command
+│   ├── stack-remove.sh  ← `cc-discipline remove-stack` command
+│   └── hook-hashes      ← sha256 of every shipped framework hook up to 2.14.0 (frozen)
 ├── init.sh              ← Main install/upgrade script (interactive + --auto)
 ├── global/
 │   └── CLAUDE.md        ← Global rules template (~/.claude/CLAUDE.md)
@@ -91,20 +92,21 @@ npx cc-discipline@latest upgrade
 
 ### tests/session-start-matrix.sh
 - **Path**: `tests/session-start-matrix.sh`
-- **Purpose**: 33-case matrix for what `session-start.sh` injects: progress.md's Current Status (not the old `tail -20`), todo.md's *Now* list, and a count of open *Later* items. Covers CRLF files, heading case and trailing spaces, HTML-commented examples, ticked items, a Now list over 20 lines, a progress.md with no Current Status heading, an empty or over-long Current Status, and headings inside HTML comments. **Run after ANY change to session-start.sh.** The hook as it stood before 2026-09-23 fails 20 of the 33, which is what shows the matrix discriminates. Passes on macOS's BSD awk as well.
+- **Purpose**: 57-case matrix for what `session-start.sh` injects: progress.md's status section (not the old `tail -20`), todo.md's *Now* list, and a count of open *Later* items. Covers CRLF files, heading case and trailing spaces, HTML-commented examples, ticked items, a Now list over 20 lines, a progress.md with no status heading, an empty or over-long status, headings inside HTML comments; and, from the 2.14.0 field reports, suffixed and Chinese headings (`## Current Status (date)`, `## 当前态(…)`, `## 当前状态`), `## ` inside a code fence, indented Later sub-items, Later items without a revisit condition, a stale status (older than the newest dated heading, or than two weeks), and `<!-- cc-discipline: status-lines=N -->`. "Today" is pinned through `CC_DISCIPLINE_TODAY`. **Run after ANY change to session-start.sh.** The 2.14.0 hook fails 12 of the 24 cases added for 2.15.0.
 - **Usage**: `bash tests/session-start-matrix.sh [path-to-session-start.sh]` (defaults to the templates/ copy). Exits non-zero on any failure.
 - **Created**: 2026-09-23 — alongside docs/todo.md
 
 ### tests/git-guard-matrix.sh
 - **Path**: `tests/git-guard-matrix.sh`
-- **Purpose**: Regression matrix for `git-guard.sh`, 120 cases:
+- **Purpose**: Regression matrix for `git-guard.sh`, 149 cases:
   - the original 34: bare and compound destructive commands, `bash -c`/`eval`/`sudo`, commit messages *describing* destructive commands, and safe commands;
   - the 14 bypasses from the 2026-09-23 review;
   - parser details: quoted `-C` paths, global options, substitutions, heredocs, line continuations, redirections;
   - false-positive guards, including Claude Code's `$(cat <<'EOF' …)` commit messages;
   - payload parsing: shadowing keys, key order, a missing `command`;
   - the 2026-09-24 code review: a `)` inside a quoted string in `$(...)`, value-taking push options, digit clusters, comments, the other command separators, global options and executable paths;
-  - the fallback: a stand-in `awk` that fails on PATH, work-queue overflow, payloads over 64 KB.
+  - the fallback: a stand-in `awk` that fails on PATH, work-queue overflow, payloads over 64 KB;
+  - the 2.14.0 field reports: heredoc bodies that are data (cat, tee, `git commit -F -`, markdown code spans, a 220-span note) and every executing form that must still block (bash, sudo bash, a pipe into bash, write-then-run, python, ssh, a heredoc inside `$(...)` or `<(...)`, unquoted delimiters that expand, script targets such as `x.sh`, `.git/hooks/`, `bin/`), plus `stash drop`/`clear`.
 
   **Run this after ANY change to git-guard** — it is the only guard that prevents data loss, and a miss is unrecoverable while a false positive costs one turn.
 - **Usage**: `bash tests/git-guard-matrix.sh [path-to-git-guard.sh]` (defaults to the templates/ copy; pass `.claude/hooks/git-guard.sh` to check the installed one). Exits non-zero on any failure.
@@ -142,10 +144,11 @@ Rules only. The incidents behind them are in `docs/progress.md` — do not resta
 
 - **Every `jq` read needs a grep/sed fallback — for EVERY field, not just the obvious one.** git-guard once read `tool_name` with jq alone, so on any jq-less machine it exited 0 at the first check and every destructive-git guard below it was dead code from day one. Audit with `grep -n 'jq -r' templates/.claude/hooks/*.sh`: every hit must sit inside a `command -v jq` branch that has an `else`.
 - **Choose each hook's failure direction deliberately and say so in a comment.** git-guard fails **loud** — a spurious prompt costs one turn, a miss costs the user's work. post-error-remind fails **silent** — a false positive misleads.
-- **Run the matrices after touching either guard's matching**: `tests/git-guard-matrix.sh` (120 cases) and `tests/pre-edit-guard-matrix.sh` (21); after touching `session-start.sh`, run `tests/session-start-matrix.sh` (33). Glob, ERE and BRE are different engines; equivalence must be demonstrated, not assumed.
-- **git-guard also matches destructive command names inside heredoc bodies and quoted script text**, so writing documentation *about* those commands through a shell heredoc is blocked. Use the Write tool, which the guard does not gate. **Do not "fix" this** — blanking heredoc bodies would open a real hole, since a heredoc fed to `bash` executes. The one exception is a commit message written as `-m "$(cat <<'EOF' … EOF)"` with a *quoted* delimiter: that body cannot expand, so it is data.
+- **Run the matrices after touching either guard's matching**: `tests/git-guard-matrix.sh` (149 cases) and `tests/pre-edit-guard-matrix.sh` (21); after touching `session-start.sh`, run `tests/session-start-matrix.sh` (57). Glob, ERE and BRE are different engines; equivalence must be demonstrated, not assumed.
+- **A heredoc body is data only when git-guard can see it goes nowhere that runs.** Since 2.15.0: it must feed `cat`, `tee` or `git commit -F -`, not write a script (`x.sh`, `.git/hooks/`, `bin/`), pipe only into sinks or plain filters, sit in the command Claude typed rather than inside a substitution, and nothing else in the command may run an interpreter, a `./path` or a script. Everything else is code. This replaced "every body is code" after three field reports, because appending notes that *name* destructive commands to progress.md was blocked daily. It is an allowlist: widen it only together with matrix cases for the executing forms it could let through. Quoted text inside an interpreter heredoc (`python - <<'PY'`) is still code — write such scripts with the Write tool.
+- **Never name an awk variable after a gawk built-in** (`RT`, `FPAT`, `IGNORECASE`, `PROCINFO`, `ERRNO`, …). Using `RT` as an array made gawk die with "attempt to use scalar `RT' as an array"; BSD awk has no such variable and runs fine, so only Linux and Windows fail. The fallback kept git-guard failing loud, and only the matrix showed it.
 - **A hook matrix must count only exit 0 as PASS.** Claude Code treats any exit other than 2 as a non-blocking error, so a hook that crashes lets the command run; a matrix that counts every non-2 code as a pass cannot see that.
-- **Bash-path latency** (MS-01, Git Bash, jq absent): git-guard ~190ms since the awk rewrite (it was ~900ms); `action-counter` at ~350ms is now the critical path. On macOS the same git-guard takes ~10ms.
+- **Hook latency** (MS-01, Git Bash, jq absent; the box's load moves these by ±50ms, so compare old and new side by side): git-guard ~190–280ms since the awk rewrite (it was ~900ms), with `action-counter` at ~350ms the critical path of every Bash call; session-start ~420ms in 2.15.0 (2.14.0: ~900ms), once per session. On Windows every fork costs tens of milliseconds: parse awk output with `while read` and `case`, not one `printf | sed` per field. On macOS git-guard takes ~10ms.
 - **Edit-path latency baseline** (Git Bash, jq absent): the three `PreToolUse` hooks run in parallel and `pre-edit-guard` is the critical path — ~150ms for an exempt file, ~650ms for source. Do not add a fourth hook to that path without measuring.
 
 ### Shell escaping
@@ -177,11 +180,12 @@ Four separate failures in one session came from this family. Prefer Python with 
 - **Remote rollout needs a LOGIN shell**: `ssh host 'bash -ls -- <args>' < script.sh`. Without `-l` no profile is sourced and `npx` is not on PATH — six installs failed together this way.
 - **`npx` inside `find | while read` eats the loop's stdin.** Collect the list into a variable and iterate with `for`, or redirect the command's stdin from `/dev/null`.
 - **To deploy an unpublished version, `npm pack` and install from the tarball with `npx -y --package=<tgz> cc-discipline upgrade`.** A bare Windows path — `npx -y C:/…/cc-discipline-X.tgz upgrade` — exits 0 and does nothing; `file:<tgz>` also works. Rehearse on a throwaway 2.x project on each machine first, then read the version marker afterwards.
+- **Keep each install's upgrade output and surface its "Needs your attention" block.** Since 2.15.0 init.sh names every framework hook it replaced over local changes, and every skill it kept with a `.new` beside it, right under "Setup complete!". The 2.14.0 rollout wrote that output to a log and deleted it on success, so nobody saw that ~15 installs had a `.new` waiting. Framework hooks are still always replaced (backed up to `.claude/.backup-<time>/hooks/`); modified ones are detected through `.claude/.cc-discipline-hooks.manifest` and, for older installs, `lib/hook-hashes`, which is frozen and must not be regenerated.
 - **Verify functionally, not by file content.** Grepping the installed file proves it arrived; feeding a guard payloads and checking exit codes proves it decides correctly.
 
 ### Skills
 
-- **Skills are conffiles.** A modified skill is preserved and the current template is written beside it as `SKILL.md.new`. There is no need to hand-save `/self-check`'s Project-specific Checks before upgrading — that was required before 2.12.2 and is not now. Extra user-authored skill dirs are never touched.
+- **Skills are conffiles.** A modified skill is preserved and the current template is written beside it as `SKILL.md.new`; `doctor` and `status` list the ones still waiting. There is no need to hand-save `/self-check`'s Project-specific Checks before upgrading — that was required before 2.12.2 and is not now. Extra user-authored skill dirs are never touched.
 - **Retiring a core rule takes five edits, not one.** Core rules are overwritten on every upgrade, so a rule dropped only from `templates/` stays in every existing install indefinitely. Delete the template, remove its `cp` line in `init.sh`, add it to the retired-rules `rm` block there (which runs only in upgrade mode — in append mode a file by that name is the user's own), drop it from `lib/doctor.sh`'s loop (otherwise `doctor` fails on every install), and update both READMEs.
 - **Installs that jumped from `<2.12.2` have no manifest**, so retired skills are never removed there and will persist indefinitely.
 
