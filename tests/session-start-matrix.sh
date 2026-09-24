@@ -209,6 +209,20 @@ printf '%s\n' "## 当前态(2026-09-05)" "- 状态" "## 2026-09-20 · 新条目"
 has   "date taken from the heading"    "2026-09-05"
 has   "heading-dated status flagged"   "may be stale"
 
+echo "--- 2.15.0 field report: dates that are not dates, and which date wins ---"
+newcase ticket
+printf '%s\n' "## Current Status" "- **Last updated**: 2026-09-24" "- current" "## 记录" "### 报价单 GS-QTC-2026-38-001 已发" "- x" > "$D/docs/progress.md"; run "$D"
+lacks "a ticket number is not a date"  "may be stale"
+newcase glued
+printf '%s\n' "## Current Status" "- **Last updated**: 2026-09-24" "## build 12026-09-300 notes" > "$D/docs/progress.md"; run "$D"
+lacks "digits glued to a date-shape are not a date" "may be stale"
+newcase lastwins
+printf '%s\n' "## 当前态(2026-09-05)" "- 最后更新：2026-09-24" "- 状态" "## 2026-09-20 · 较早条目" "- x" > "$D/docs/progress.md"; run "$D"
+lacks "an explicit last-updated line beats the heading date" "may be stale"
+newcase lastloses
+printf '%s\n' "## 当前态(2026-09-23)" "- 最后更新：2026-09-01" "- 状态" "## 2026-09-20 · 较新条目" "- x" > "$D/docs/progress.md"; run "$D"
+has   "the last-updated line is used even when older than the heading" "last updated 2026-09-01"
+
 echo "--- status length set per project ---"
 newcase lines30
 { echo "<!-- cc-discipline: status-lines=30 -->"; echo "## Current Status"; for i in $(seq 1 40); do echo "- status line $i"; done; } > "$D/docs/progress.md"; run "$D"

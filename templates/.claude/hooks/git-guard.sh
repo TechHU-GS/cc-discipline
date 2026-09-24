@@ -50,10 +50,15 @@ function enqueue(s) {
     if (s in SEEN) return          # judged once: long notes repeat the same `git ...` spans
     if (QN >= QMAX) { OVERFLOW = 1; return }
     SEEN[s] = 1; QN++; Q[QN] = s
+    QH[QN] = (ENQ_HD || CURHD)     # from a heredoc body judged as code, or from text inside one
 }
 
+# A block found inside a heredoc body judged as code carries a note: the usual
+# case is a script that only edits a file and merely NAMES the command (a
+# report asked for python heredocs to pass; judging what python code executes
+# is not reliable, so the guard says what to do instead).
 function block(reason, hint) {
-    if (VERDICT == "") VERDICT = "BLOCK\t" reason "\t" hint
+    if (VERDICT == "") VERDICT = "BLOCK\t" reason "\t" hint (CURHD ? "\t" HDNOTE : "")
 }
 
 # ── 1. Payload ────────────────────────────────────────────────────────────
@@ -384,8 +389,10 @@ function tokenize(s,    n, i, c, e, q) {
 function decide_heredocs(s,    k, allcode) {
     if (PBN == 0) return
     allcode = (CURQI != 1 || HOPN != PBN || index(s, "<(") || index(s, ">(") || item_runs())
+    ENQ_HD = 1
     for (k = 1; k <= PBN; k++)
         if (allcode || !heredoc_is_data(HOPAT[k])) enqueue(PB[k])
+    ENQ_HD = 0
 }
 
 function base(w) { w = tolower(w); sub(/.*[\/\\]/, "", w); sub(/\.exe$/, "", w); return w }
@@ -601,7 +608,8 @@ function judge_sub(name, a, b,    k, w, dd, pn, i, nm, force, staged, wt, r, L, 
 
 # ── Main ──────────────────────────────────────────────────────────────────
 BEGIN {
-    QMAX = 1000; QN = 0; OVERFLOW = 0; VERDICT = ""
+    QMAX = 1000; QN = 0; OVERFLOW = 0; VERDICT = ""; ENQ_HD = 0; CURHD = 0
+    HDNOTE = "This was inside a heredoc that gets run (fed to an interpreter such as python or bash, or written as a script), which this guard judges as code. If the script only edits files and merely names the command, write it to a file with the Write tool and run that file instead."
     HAVETOOL = 0; TOOL = ""; HAVECMD = 0; CMD = ""
     MSGPOS = "(^|[ \t\n])(-m|--message|-F|--file)(=|[ \t]*(\\\\\n[ \t]*)?)\"?$"
     MSGTAIL = "[ \t\n](-m|--message|-F|--file)(=|[ \t]*(\\\\\n[ \t]*)?)\"?$"
@@ -615,7 +623,7 @@ END {
     if (!HAVECMD) CMD = PAYLOAD                     # cannot isolate the command: scan it all
     enqueue(CMD)
     for (qi = 1; qi <= QN && VERDICT == ""; qi++) {
-        CURQI = qi
+        CURQI = qi; CURHD = QH[qi]
         LIFTED = lift_substitutions(Q[qi], 0)
         tokenize(LIFTED)
         decide_heredocs(LIFTED)
@@ -638,6 +646,7 @@ else
     VERDICT=$(awk "$PROG" <<<"$INPUT" 2>/dev/null)
 fi
 TAB=$'\t'
+NOTE=""    # never inherited from the environment
 
 case "$VERDICT" in
     OK)
@@ -645,7 +654,9 @@ case "$VERDICT" in
     "BLOCK$TAB"*)
         REST=${VERDICT#BLOCK$TAB}
         BLOCKED=${REST%%$TAB*}
-        SUGGESTION=${REST#*$TAB} ;;
+        REST=${REST#*$TAB}
+        SUGGESTION=${REST%%$TAB*}
+        case "$REST" in *"$TAB"*) NOTE=${REST#*$TAB} ;; esac ;;
     *)
         # No verdict from the parser, or too long to parse. Fail loud, but only
         # when the payload mentions git and a guarded subcommand at all — a
@@ -662,5 +673,5 @@ case "$VERDICT" in
         fi ;;
 esac
 
-echo "Git safety check: Blocked $BLOCKED. This is an irreversible operation — uncommitted work would be lost. Before proceeding: (1) Check git status and git diff to see what would be affected. (2) If changes should be kept, run: $SUGGESTION first. (3) If you're certain the changes should be discarded, tell the user what will be lost and ask for explicit confirmation." >&2
+echo "Git safety check: Blocked $BLOCKED. This is an irreversible operation — uncommitted work would be lost. Before proceeding: (1) Check git status and git diff to see what would be affected. (2) If changes should be kept, run: $SUGGESTION first. (3) If you're certain the changes should be discarded, tell the user what will be lost and ask for explicit confirmation.${NOTE:+ $NOTE}" >&2
 exit 2

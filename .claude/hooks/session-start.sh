@@ -35,7 +35,7 @@ fi
 #     name and the next character is not a letter or digit.
 #   - A "## " line inside a code fence is content, not a heading.
 #   - A status section can be months old while newer entries pile up below it.
-#     Its date (from the heading or a "Last updated" line) is compared with the
+#     Its date (a "Last updated" line, else the heading's) is compared with the
 #     newest dated heading in the file and with today, and a stale one is flagged.
 #   - Some projects keep a long status on purpose. `<!-- cc-discipline:
 #     status-lines=N -->` anywhere in progress.md raises the default of 15.
@@ -55,8 +55,19 @@ function heading_is(t, name,    p, nx) {   # t starts with "## <name>" + a non-w
     nx = substr(t, length(p) + 1, 1)
     return (nx == "" || nx !~ /[A-Za-z0-9_]/)
 }
-function date_in(s) {                         # first YYYY-MM-DD in s, or ""
-    if (match(s, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) return substr(s, RSTART, RLENGTH)
+# First plausible YYYY-MM-DD in s, or "". The month must be 01-12, the day
+# 01-31, and no digit may touch either end: ticket numbers are date-shaped
+# ("GS-QTC-2026-38-001" is year-week-serial), and "2026-38-00" compared as a
+# string beats every real date, which flagged a fresh status as stale forever.
+function date_in(s,    base, rest, p, d, m, dd) {
+    base = 1; rest = s
+    while (match(rest, /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)) {
+        p = base + RSTART - 1; d = substr(s, p, RLENGTH)
+        m = substr(d, 6, 2) + 0; dd = substr(d, 9, 2) + 0
+        if ((p == 1 || substr(s, p - 1, 1) !~ /[0-9]/) && substr(s, p + RLENGTH, 1) !~ /[0-9]/ \
+            && m >= 1 && m <= 12 && dd >= 1 && dd <= 31) return d
+        base = p + 1; rest = substr(s, base)
+    }
     return ""
 }
 # skip() consumes comment and fence lines; returns 1 when the caller should
@@ -87,16 +98,18 @@ if [ -f "docs/progress.md" ]; then
         /^## / {
             if (on) { on = 0; done = 1 }
             else if (!done && (heading_is(t, "Current Status") || heading_is(t, "当前态") || heading_is(t, "当前状态"))) {
-                on = 1; found = 1; sdate = date_in(t); next
+                on = 1; found = 1; hdate = date_in(t); next
             }
         }
         on && /^-+[ \t]*$/ { next }
         on && NF {
             body[++nb] = $0
-            if (sdate == "" && tolower($0) ~ /last updated|updated:|最后更新|更新于/) sdate = date_in($0)
+            if (udate == "" && tolower($0) ~ /last updated|updated:|最后更新|更新于/) udate = date_in($0)
         }
         END {
-            print "@found=" (found ? 1 : 0); print "@sdate=" sdate; print "@newest=" newest
+            # an explicit "last updated" line beats the heading date, which is
+            # often when the section was first written or last rewritten whole
+            print "@found=" (found ? 1 : 0); print "@sdate=" (udate != "" ? udate : hdate); print "@newest=" newest
             print "@more=" (nb > lines ? nb - lines : 0)
             for (i = 1; i <= nb && i <= lines; i++) print "|" body[i]
         }' docs/progress.md 2>/dev/null)

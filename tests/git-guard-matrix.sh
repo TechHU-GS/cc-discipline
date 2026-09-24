@@ -197,6 +197,18 @@ run BLOCK "写 git hook 也是代码"                  "cat > .git/hooks/pre-com
 run BLOCK "tee 写脚本也是代码"                    "tee deploy.sh <<${SQ}EOF${SQ}${NL}git clean -fd${NL}EOF"
 run BLOCK "写到 bin/ 下也是代码"                  "cat > bin/cleanup <<${SQ}EOF${SQ}${NL}git clean -fd${NL}EOF"
 
+echo "── 2.15.0 试用反馈：解释器 heredoc 被拦时，提示里要给出做法 ──"
+hint() { # hint <want: yes|no> <label> <command-string> — does stderr carry the Write-tool advice?
+    out=$(printf '{"tool_name":"Bash","tool_input":{"command":"%s"}}' "$(printf '%s' "$3" | jesc)" | bash "$H" 2>&1 >/dev/null)
+    case "$out" in *"with the Write tool"*) got=yes ;; *) got=no ;; esac
+    if [ "$got" = "$1" ]; then PASS=$((PASS+1)); printf "  ok   hint=%-4s %s\n" "$got" "$2"
+    else FAIL=$((FAIL+1)); printf "  FAIL hint want=%s got=%s  %s\n" "$1" "$got" "$2"; fi
+}
+hint yes "python heredoc 只是提到危险命令"   "python3 - <<${SQ}EOF${SQ}${NL}print(${Q}never git reset --hard${Q})${NL}EOF"
+hint yes "写脚本文件的 heredoc"             "cat > x.sh <<${SQ}EOF${SQ}${NL}git reset --hard${NL}EOF"
+hint no  "直接执行危险命令不附这句"         "git reset --hard"
+hint no  "bash -c 里的危险命令不附这句"     "bash -c ${Q}git clean -fd${Q}"
+
 echo "── 2.14.0 试用反馈：stash ──"
 run BLOCK "stash drop"                            "git stash drop"
 run BLOCK "stash drop 指定条目"                   "git stash drop stash@{1}"
