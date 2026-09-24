@@ -1,3 +1,12 @@
+---
+paths:
+  - "**/*.{py,pyi}"
+  - "**/pyproject.toml"
+  - "**/requirements*.txt"
+  - "**/setup.cfg"
+  - "**/Pipfile"
+---
+
 ## Python Discipline
 
 ### Code Quality

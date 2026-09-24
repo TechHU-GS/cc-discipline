@@ -1,8 +1,3 @@
----
-globs: "**/*"
-description: "Integrity discipline — verification, honesty, and protecting the user's credibility"
----
-
 ## Integrity Discipline
 
 These practices protect the user's credibility and the quality of our work together. They exist because past failures in these areas had real consequences.
@@ -75,5 +70,5 @@ Match your confidence level to the strength of your evidence.
 
 When you discover wrong information in memory, docs, or prior output:
 1. Correct it now, not "next time"
-2. Note the correction and why, to prevent recurrence
+2. If the mistake could recur, record what prevents it (a pitfall, a check). In your reply, raise a correction when it changes the user's code, conclusions, or decisions — including any ✅ that should now be ⚠️ — and state it plainly. Slips that change nothing can be fixed without narrating them
 3. If wrong information was already sent externally, alert the user

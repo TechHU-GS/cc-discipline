@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.{v,sv,vh,svh,vhd,vhdl}"
+  - "**/*.{xdc,sdc}"
+---
+
 ## RTL Discipline
 
 ### Hardware Mindset (not software mindset)

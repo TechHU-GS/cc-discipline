@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.{swift,m,mm,kt,kts,java,dart}"
+  - "**/{Info.plist,AndroidManifest.xml,pubspec.yaml,Podfile}"
+  - "**/*.gradle*"
+---
+
 ## Mobile Development Discipline
 
 ### Platform Awareness

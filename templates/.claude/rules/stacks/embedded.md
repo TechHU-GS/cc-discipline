@@ -1,3 +1,11 @@
+---
+paths:
+  - "**/*.{c,h,cpp,hpp,cc,cxx,hh,s,S,ld,lds}"
+  - "**/{CMakeLists.txt,Makefile}"
+  - "**/{sdkconfig,Kconfig}*"
+  - "**/*.{cmake,mk,dts,dtsi,overlay}"
+---
+
 ## Embedded Development Discipline
 
 ### Resource Awareness

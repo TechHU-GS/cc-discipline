@@ -1,8 +1,3 @@
----
-globs: "**/*"
-description: "Core working principles — auto-injected before all operations"
----
-
 ## Core Principles
 
 1. **Understand before acting** — Know what you're changing, why, and what it affects before you edit. State the reasoning when it isn't evident from the change itself; don't narrate routine edits

@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.{js,jsx,ts,tsx,mjs,cjs,vue,svelte}"
+  - "**/package.json"
+  - "**/tsconfig*.json"
+---
+
 ## JavaScript / TypeScript Discipline
 
 ### Type Safety

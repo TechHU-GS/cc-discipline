@@ -14,13 +14,4 @@ If you notice any of the following patterns, **pause and regroup**:
 - Look for the common cause across these problems
 - Design a unified fix at the root cause level
 - After fixing, verify that all problems are resolved simultaneously
-
-### Report Template
-If you need to pause, use this format:
-```
-PATTERN DETECTED
-Attempted: [list all attempted fixes]
-Observed pattern: [what these problems have in common]
-Suspected root cause: [your current judgment]
-Need confirmation: [what you're unsure about]
-```
+- When you pause, tell the user what you tried, what you think connects the problems, and what you're unsure about

@@ -39,7 +39,7 @@ Don't skip the first three steps and jump straight to the fourth.
 
 ## Context Hygiene
 
-- Use subagents for research. Don't read large volumes of files in the main conversation.
-- Update docs/progress.md after completing each milestone.
+- Delegate to subagents only for sizeable, independent work that would otherwise flood the conversation; do small reads, edits and checks yourself.
+- Update docs/progress.md after completing each milestone; keep open work in docs/todo.md.
 - Don't proactively warn about context running low or suggest compacting. The system auto-compacts at 0% — you cannot see the percentage. Keep progress.md updated instead.
-- First thing after compact: read `docs/progress.md` and `docs/debug-log.md`.
+- First thing after compact: read `docs/progress.md`, `docs/todo.md` and `docs/debug-log.md`.
