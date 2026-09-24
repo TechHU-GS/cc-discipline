@@ -76,10 +76,12 @@ lacks "no open-work block"             "Open work"
 
 echo "--- fresh install (shipped templates) ---"
 newcase fresh
-cp "$(dirname "$HOOK")/../../docs/progress.md" "$D/docs/progress.md" 2>/dev/null \
-  || cp templates/docs/progress.md "$D/docs/progress.md"
-cp "$(dirname "$HOOK")/../../docs/todo.md" "$D/docs/todo.md" 2>/dev/null \
-  || cp templates/docs/todo.md "$D/docs/todo.md"
+# Always the shipped templates, whichever hook copy is under test. Deriving the
+# path from the hook's location picked up this repo's own docs/ when the
+# installed copy (.claude/hooks/) was tested, and failed three cases.
+TPL="$(cd "$(dirname "$0")/.." && pwd)/templates/docs"
+cp "$TPL/progress.md" "$D/docs/progress.md"
+cp "$TPL/todo.md" "$D/docs/todo.md"
 run "$D"
 has   "status section injected"        "**In progress**"
 lacks "template Later examples not counted" "Later:"

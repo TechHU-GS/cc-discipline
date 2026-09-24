@@ -9,7 +9,7 @@
 ### Delegation
 - **Delegate for isolation and genuine parallelism — not by default.** A subagent earns its cost when the work is sizeable, genuinely independent, and would otherwise flood the main conversation: a wide multi-file investigation, one agent per area of a broad survey.
 - **Work directly** on single-file edits, short sequences of tool calls, and anything where you need to carry context across steps. If you can finish it in a handful of tool calls, don't delegate it.
-- **Never delegate verification.** Don't spawn agents to double-check or re-verify your own work.
+- **Never delegate verification.** Don't spawn agents to double-check or re-verify your own work. A skill the user invokes explicitly that delegates by design, such as `/investigate`, takes precedence.
 - **Keep spawn counts low.** If one subagent can do the job, use one rather than several.
 - **Keep the main conversation for decisions.** When you do delegate research, the subagent reads and reports; the main conversation synthesizes and decides.
 

@@ -29,21 +29,44 @@ fi
 # on every line) and HTML comments are dropped. Portable awk only — this has to
 # behave the same under macOS's BSD awk. Fails silent: a missing or reshaped file
 # injects nothing rather than something misleading.
+# Comment state is tracked on every line, before any heading test, so a heading
+# written inside <!-- ... --> neither opens nor closes a section.
 section() {  # section <file> <heading>: body of "## <heading>" up to the next "## "
     sed 's/\r$//' "$1" 2>/dev/null | awk -v h="## $2" '
+        /<!--/                   { c = 1 }
+        c                        { if (/-->/) c = 0; next }
         { t = $0; sub(/[ \t]+$/, "", t) }
         tolower(t) == tolower(h) { on = 1; next }
         on && /^## /             { exit }
         on && /^-+[ \t]*$/       { next }
-        on && /<!--/             { c = 1 }
-        on && !c && NF           { print }
-        on && c && /-->/         { c = 0 }'
+        on && NF                 { print }'
+}
+has_heading() {  # has_heading <file> <heading>: true if "## <heading>" appears outside a comment
+    sed 's/\r$//' "$1" 2>/dev/null | awk -v h="## $2" '
+        /<!--/                   { c = 1 }
+        c                        { if (/-->/) c = 0; next }
+        { t = $0; sub(/[ \t]+$/, "", t) }
+        tolower(t) == tolower(h) { found = 1; exit }
+        END                      { exit !found }'
 }
 
+# The tail fallback applies only when the heading is missing. A Current Status
+# that exists but is empty injects nothing: falling back there would present an
+# unrelated milestone as the project's status. A long section is capped with a
+# note rather than cut silently.
 STATUS=""
 if [ -f "docs/progress.md" ]; then
-    STATUS=$(section docs/progress.md "Current Status" | head -15)
-    [ -z "$STATUS" ] && STATUS=$(sed 's/\r$//' docs/progress.md | tail -20)
+    if has_heading docs/progress.md "Current Status"; then
+        STATUS_ALL=$(section docs/progress.md "Current Status")
+        STATUS=$(printf '%s\n' "$STATUS_ALL" | head -15)
+        STATUS_N=$(printf '%s\n' "$STATUS_ALL" | grep -c .) || STATUS_N=0
+        if [ "$STATUS_N" -gt 15 ]; then
+            STATUS="$STATUS
+... and $((STATUS_N - 15)) more lines under Current Status in docs/progress.md."
+        fi
+    else
+        STATUS=$(sed 's/\r$//' docs/progress.md | tail -20)
+    fi
 fi
 
 NOW=""; NOW_MORE=0; LATER=0
