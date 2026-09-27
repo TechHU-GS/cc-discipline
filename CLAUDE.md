@@ -31,7 +31,7 @@
 │   ├── .claude/
 │   │   ├── hooks/       ← 7 shell scripts (pre-edit-guard, streak-breaker, etc.)
 │   │   ├── rules/       ← 7 core rules (00-01, 03-07; 02 retired) + stacks/ (5 tech stacks)
-│   │   ├── skills/      ← 7 skills (commit, self-check, evaluate, think, summary, investigate, coplan)
+│   │   ├── skills/      ← 8 skills (commit, self-check, evaluate, think, summary, investigate, coplan, ask-me)
 │   │   ├── agents/      ← reviewer + investigator subagents
 │   │   └── settings.json← Hook registration
 │   ├── CLAUDE.md        ← Project CLAUDE.md template
@@ -87,7 +87,7 @@ npx cc-discipline@latest upgrade
 ### tools/ — rollout helpers (not shipped; `tools/` is absent from package.json `files`)
 Written for the 2.14.0–2.15.1 rollouts, which had each rebuilt them from scratch. All take their targets as arguments; the header of each shows the remote invocation for mac-mini and techhu-7940.
 - **`tools/inventory.sh <code dir>`** — read-only. Every install found by the `streak-breaker.sh` marker, 6 levels deep, with its version, parser or old git-guard, origin, last commit, and whether it is a (detached) worktree. Run it right before a rollout and have the user approve the list.
-- **`tools/rehearse-upgrade.sh <old package> <new tarball>`** — a throwaway project on the old release, upgraded from the new tarball, then the checks the rollout will make. Run it on each machine before rolling out.
+- **`tools/rehearse-upgrade.sh <old package> <new tarball>`** — a throwaway project on the old release, upgraded from the new tarball, then the checks the rollout will make. Run it on each machine before rolling out. The old release is installed with `--prefer-online`; if it does not install, the script stops with npm's error and exits 1. Before 2026-09-28 it silently rehearsed a fresh install instead, which happened on techhu-7940 when npm's cache predated a publish that morning.
 - **`tools/rollout.sh <tarball> <code dir> "<approved list>"`** — upgrades approved installs only. It skips and names anything unapproved and any detached linked worktree, names approved installs it cannot find, feeds each installed git-guard five payloads, and prints each installer's "Needs your attention" block verbatim. It reads the expected version from the tarball.
 - **`tools/install-checks.sh <repo dir> <older tarball>`** — 13 checks of this working tree's installer: the modified-hook report, the hooks manifest, CRLF tolerance, a 2.13.6 install from the registry, and the `.new` reminders in upgrade, doctor and status. Run it after touching init.sh, lib/doctor.sh, lib/status.sh or lib/hook-hashes.
 - **Testing a change on the other machines**: `tar czf` the repo (excluding `.git`), stream it with `ssh host 'tar xzf - -C /tmp/x'`, and run the matrices there. Give GNU tar a `/c/...` path, never `C:/...`, which it takes for a remote host. On mac-mini, run each matrix a second time with `LC_ALL=C.UTF-8`: the login shell has no locale, and a UTF-8 locale is what users' sessions run under.
@@ -184,6 +184,7 @@ Four separate failures in one session came from this family. Prefer Python with 
   ```
 - **`npx cc-discipline` cannot work inside this repo** — npx resolves the name against the local `package.json`. Use `node bin/cli.js`. It fails with a *message*, so a filtering `grep` shows nothing and reads as "ran, nothing changed"; always check `.claude/.cc-discipline-version` afterwards.
 - **Publishing needs two-factor authentication, and with a passkey it needs a real terminal.** The account's 2FA is a passkey in Bitwarden, so there is no six-digit code, and `npm publish` run through Claude Code's `!` prefix fails with EOTP: that shell is not interactive, so npm never offers its browser step. The user runs `npm publish` in a terminal window of their own. Before that, `npm publish --dry-run` here checks the package, and `npm whoami` checks the login.
+- **Publish the tarball that was rehearsed and rolled out, not the working tree: `npm publish <tgz>`.** Once a version has been deployed from a tarball the tree moves on, and a plain `npm publish` ships whatever is in it under that version number. Before approving the 2FA step, check that the `shasum` npm prints is the tarball's sha1. `E404 Not Found - PUT https://registry.npmjs.org/cc-discipline` means the login has expired, not that the package is missing; `npm whoami` then returns E401.
 - **After publishing, wait for the registry, then force npm past its own cache.** The registry serves a new version roughly 80s after `npm publish` returns success, and npm's *local metadata cache* lags that independently — `npx cc-discipline@<version>` fails with `ETARGET` while the version is demonstrably live. Roll out with `npx -y --prefer-online cc-discipline@<version>`, and read the version marker afterwards rather than trusting installer output. Compare `npm view cc-discipline@<version> dist.shasum` with the sha1 of the tarball you rehearsed: `npm pack` is reproducible, so they must match.
 
 ### Rollout

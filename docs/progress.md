@@ -6,13 +6,13 @@
 
 ## Current Status
 
-- **Shipped**: **v2.15.2** deployed to all 25 approved installs (2026-09-25), verified functionally; npm still serves 2.15.1 until the user publishes 2.15.2 from their terminal.
+- **Shipped**: **v2.16.0** (`/ask-me`, and `/think` asking that way) deployed to all 25 approved installs on 2026-09-28 from a tarball (shasum `06a01260…`), verified functionally, and **published to npm the same day** from that tarball (47 files; `npx cc-discipline@latest` → v2.16.0). 2.15.2 went to npm earlier that day.
 - **Fleet: 26 active installs on 3 machines** — MS-01 (9 + this repo), mac-mini-m4 `techhu@100.64.0.8` (7, including a git worktree and two nested under `GS_IC/designs/`), techhu-7940 `techhu_dev@100.64.0.18` (9, plus two frozen `_private-reference` copies at 2.10.x left alone on purpose). Enumerate by the marker `.claude/hooks/streak-breaker.sh` with `find -maxdepth 6`, never by the version file.
-- **2.14.0 → 2.15.1 (2026-09-23/24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, and `/coplan`'s review offer (2.14.0); fixes from three field reports (2.15.0); a date-parsing fix and the Write-tool note (2.15.1). 2.14.0 and 2.15.0 were deployed from tarballs and never published; 2.15.1 is on npm. See the 2026-09-23 and 2026-09-24 entries.
-- **Last updated**: 2026-09-24
-- **Skills (7)**: commit, coplan, evaluate, investigate, self-check, summary, think.
+- **2.14.0 → 2.15.1 (2026-09-23/24)**: the first half of the Opus 5.5 prompt audit, `docs/todo.md`, batch 1 of the whole-repo review, the git-guard parser, and `/coplan`'s review offer (2.14.0); fixes from three field reports (2.15.0); a date-parsing fix and the Write-tool note (2.15.1). 2.14.0 and 2.15.0 were deployed from tarballs and never published; 2.15.1 went to npm on 2026-09-24. See the 2026-09-23 and 2026-09-24 entries.
+- **Last updated**: 2026-09-28
+- **Skills (8)**: ask-me, commit, coplan, evaluate, investigate, self-check, summary, think. `ask-me` was added in 2.16.0.
 - **Open work**: `docs/todo.md`. This file records what happened.
-- **Published history**: v2.10.1 … v2.13.6, then v2.15.1 (2.14.0 and 2.15.0 were deployed, never published).
+- **Published history**: v2.10.1 … v2.13.6, then v2.15.1, v2.15.2 and v2.16.0 (2.14.0 and 2.15.0 were deployed, never published).
 ---
 
 ## Working Context
@@ -57,17 +57,22 @@ T=$(mktemp -d) && cd "$T" && git init -q &&   CC_DISCIPLINE_PKG_DIR=/e/Code/cc-d
 ### Tools & Scripts Developed
 - `bin/cli.js` — Node.js cross-platform CLI entry (2026-04-03, Windows fix)
 - `bin/cli.sh` — Original bash CLI (kept for direct bash usage)
-- `tests/git-guard-matrix.sh` — 120-case matrix for git-guard, rebuilt 2026-09-23/24 with the awk parser; PASS means exit 0 exactly. Run after ANY git-guard change; 120/120 on MS-01 (gawk 5.0.0), mac-mini (BSD awk 20200816) and techhu-7940's WSL (gawk 5.2.1). Not shipped to npm.
-- `tests/pre-edit-guard-matrix.sh` (21 cases) and `tests/session-start-matrix.sh` (33 cases) — see CLAUDE.md Project Tools.
+- `tests/git-guard-matrix.sh` — 156-case matrix for git-guard, rebuilt 2026-09-23/24 with the awk parser; PASS means exit 0 exactly. Run after ANY git-guard change, on mac-mini also under `LC_ALL=C.UTF-8`. Not shipped to npm.
+- `tests/pre-edit-guard-matrix.sh` (21 cases) and `tests/session-start-matrix.sh` (64 cases) — see CLAUDE.md Project Tools.
+- `tools/` — inventory, rehearse-upgrade, rollout, install-checks; see CLAUDE.md Project Tools.
 - Cross-machine runs: bundle the hook and its matrix into one script (files as quoted heredocs) and pipe it to `ssh host 'bash -ls'`; nothing is copied, and the temp dir is removed afterwards.
 
 ### Environment State
 - Branch: main
-- **3 machines, 26 active installs, all v2.14.0** (2026-09-24, from a tarball; npm still serves 2.13.6). MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
+- **3 machines, 26 active installs, all v2.16.0** (2026-09-28, from the tarball that is now on npm). The approved rollout list, relative to each code dir (pass it to `tools/rollout.sh`):
+  - MS-01 `/e/Code`: `HUB_Rev1_FW litevna-test phenology-twin soil-twin tb-toolkit techhu-devices wechat-visual ziiqii-geosense ziiqii-techhu`; this repo is the 26th and is kept in sync by hand.
+  - mac-mini `$HOME/Code`: `GS_IC/designs/analog-trial GS_IC/designs/soilz_sky130 gem_flutter_mobile gem_flutter_mobile_convergence_worktree gs-perception techhu-devices ziiqii-geosense`
+  - techhu-7940 `/d/Code`: `esp32s31-linux-gw gem_flutter_mobile gem-platform HUB_Rev1_FW litevna_tinysa lte-lab tb-toolkit techhu-devices vini-twin`; left alone: the two `_private-reference` copies, and `HUB_Rev1_FW_main` (a branch worktree seen 2026-09-28 at 2.15.1, which the HUB session is merging).
+  MS-01 = this box (Windows, no jq, `E:\Code`). MS-01 = this box (Windows, no jq, `E:\Code`). Remotes over Tailscale, passwordless SSH from here:
   - `techhu@100.64.0.8` mac-mini-m4 — macOS, HAS jq, node at `/usr/local/bin` (use `bash -lc` over SSH or PATH is missing it), code in `~/Code`
   - `techhu_dev@100.64.0.18` techhu-7940 — Windows, node v24, code in `D:/Code`, cmd.exe shell. `bash` on PATH is only the WindowsApps WSL stub (wrong filesystem view); for Git Bash call its full path under `Program Files/Git/bin/` quoted, and note Git Bash sees the code dir as `/d/Code`.
 - Full machine details live in `techhu-devices/.claude/skills/dev-machines/SKILL.md`
-- Latest npm: 2.13.6 (2026-09-02); installs run 2.14.0 from a tarball (2026-09-24). macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
+- Latest npm: 2.16.0 (2026-09-28), identical to what the installs run. macOS + Windows both tested before publish — see v2.12.1 milestone for why that is now mandatory.
 - macOS + Windows tested
 
 ### Gotchas Discovered
@@ -964,3 +969,66 @@ Before the fix, under C.UTF-8 on mac-mini, session-start failed 4 of 64 and git-
 - **Rehearsal:** 2.15.1 → 2.15.2 on all three machines; mac-mini under `LC_ALL=C.UTF-8`.
 - **Rollout:** 25/25 approved installs are on 2.15.2, each passing the five guard payloads with git-guard registered once. techhu-7940 found 9: HUB_Rev1_FW had already removed its scratch worktree.
 - **In the reporting project** (mac-mini ziiqii-geosense, under C.UTF-8 and en_US.UTF-8), session-start injects Current Status again: "Last updated: 2026-09-25", not the file's tail.
+
+### 2026-09-28 — /ask-me: asking with background and options becomes a framework skill (unreleased)
+
+**What**: A new skill, `templates/.claude/skills/ask-me/SKILL.md`, plus its dogfood copy in `.claude/`. It turns a pattern that had lived only in this repo's memory (`decisions-as-options`) into something every install gets:
+- settle what the repo can answer;
+- write three to six lines of background;
+- ask with AskUserQuestion, one to four questions of two to four options each, recommendation first and marked "（推荐）";
+- after the answer, act only on what was answered.
+
+The user asked for it because answers otherwise come as a wall of text, or as a bare question they cannot answer without context the model holds.
+
+**Decisions**:
+- **A framework skill, not a repo-local one.** I first offered repo-only and personal placement, and the user rejected the question: the skill is for cc-discipline. Recorded as memory `framework-scope-by-default`.
+- **Both the user and the model invoke it.** The user types `/ask-me`; the model uses it itself only when blocked on the user's call or on intent that no file can answer. That follows the user's own description ("有时候需要选择或者模型背景不完全清楚的时候用"). `when_to_use` is kept narrow so the model does not ask about things a default settles.
+- **Text fallback.** `/self-check` lists AskUserQuestion under `disallowed-tools`, which is why the tool was denied during this session's self-check. The skill falls back to numbered questions with lettered options.
+- **After a rejected or interrupted question, stop and wait; do not re-ask.** This happened in this very session.
+- **/think now asks the /ask-me way** (the user's choice). Step 2 asks only what Step 0's research left, which should be preference and direction; the user's words were "调研做好，有喜好或者方向问题再问". It no longer caps the questions at 2–3: there can be up to four per call. Step 5 asks for the pick as one question, with the approaches as options; when `/coplan` is stacked, the pick waits until after the plan is written and the review offered. `/think` references `/ask-me` rather than copying its rules. Cost: installs with an edited `think` get a `SKILL.md.new`.
+- **Release**: 2.16.0, as soon as the user has published 2.15.2.
+
+**Install cost**: none beyond the new directory. `init.sh` copies every directory under `templates/.claude/skills/`, and doctor and status loop over the installed ones. The READMEs name only `/commit` in their trees, so they are unchanged. The CLAUDE.md tree and the Current Status skill count were updated.
+
+**Verification**:
+- A fresh install through `node bin/cli.js init --auto --stack 7` into a temp project: `✓ /ask-me`, the installed copy is byte-identical to the template, and the manifest has an `ask-me/SKILL.md sha256:` entry.
+- `status`: `Skills: 8 (/ask-me /commit /coplan /evaluate /investigate /self-check /summary /think)`.
+- `doctor`: `✓ /ask-me`, with the usual 2 warnings (jq absent, the template's `[TODO]`).
+- The session's skill list picked up the dogfood copy, so the frontmatter parses.
+
+### 2026-09-28 — 2.15.2 publish: a plain `npm publish` nearly shipped the working tree
+
+After `/ask-me` was written, I told the user to run `npm publish` in the repo; the tree by then carried the unreleased `/ask-me` and `/think` changes. I corrected it one message later, but the user ran the original. npm packed 47 files including `skills/ask-me/SKILL.md` as "2.15.2", shasum `b66760b8…` against the deployed `a8a95d67…`. It failed only because the login had expired: `E404 Not Found - PUT https://registry.npmjs.org/cc-discipline`, with `npm whoami` returning E401 on the same `~/.npmrc`. Verified afterwards: `dist-tags.latest` is still 2.15.1 and `cc-discipline@2.15.2` does not exist, so nothing was published. Rule added to CLAUDE.md Release: publish the rehearsed tarball, `npm publish <tgz>`, and check the printed shasum before approving 2FA.
+
+The other route tried the same day, running npm from Claude's shell, is blocked by npm's TTY check (`lib/utils/auth.js:10` rethrows EOTP when stdin/stdout is not a TTY). Preloading `process.stdin.isTTY = process.stdout.isTTY = true` with `--browser=false` makes npm print the web-auth URL and poll for the result, which worked mechanically. The login link then expired unused after ~5 minutes: the process ran 02:35:29–02:40:33, and npm turned the resulting 4xx into ENYI and fell back to a username prompt. Not tried to completion.
+
+### 2026-09-28 — 2.16.0 rolled out: /ask-me reaches all 25 installs
+
+**What**: `package.json` went to 2.16.0, packed as `cc-discipline-2.16.0.tgz`: 47 files, shasum `06a012602da34e90163c81ca83e1934a902693a2`. The tarball was rehearsed on all three machines and rolled out to the approved 25; it is not yet on npm.
+
+**How**:
+- The three matrices passed first: 156, 21 and 64. The CR check was clean.
+- `tools/rehearse-upgrade.sh cc-discipline@2.15.2 <tgz>` ran on each machine.
+- `tools/inventory.sh` ran on each machine and was diffed against the approved lists, which were recovered from the 2.15.2 rollout commands and are now in Working Context.
+- `tools/rollout.sh` ran on each machine in parallel.
+- This repo's marker was set to 2.16.0 by hand; its `ask-me` and `think` copies match the templates.
+
+**Gotcha: the rehearsal silently rehearsed a fresh install on techhu-7940.** It printed `before:` with nothing after it. npx there failed with `notarget No matching version found for cc-discipline@2.15.2`, because the local metadata cache predated that morning's publish; with `--prefer-online` it installed v2.15.2. The script had sent the init output to /dev/null, so the failure was invisible. `tools/rehearse-upgrade.sh` now:
+- installs the old package with `--prefer-online`;
+- keeps its output in `init.log`;
+- exits 1 with the npm error when the `streak-breaker.sh` marker is missing. Checked with `cc-discipline@9.9.9`, which prints the ETARGET error and rc=1.
+
+After the fix, 7940 rehearsed `2.15.2 → 2.16.0` like the other two machines.
+
+**Gotcha: my own check first reported 0/25.** The script concatenated the output of `sha1sum` and `shasum`, and both tools exist on all three machines. One direct look showed the file present, with the right hash. The corrected check uses the first tool that works, and it was validated against a missing install and a wrong hash, which both fail.
+
+**New install found:** `HUB_Rev1_FW_main` on 7940, a branch worktree (not detached) at 2.15.1. It was not approved; the script skipped it, and the user said the HUB session is merging it.
+
+**Verification**:
+- Rollout: 25/25 went `2.15.2 -> 2.16.0 rc=0 guard=ok/ok/ok/ok/ok regs=1`.
+- `/ask-me` is installed in all 25, with sha1 `cbf5237c…` identical to the template: MS-01 9/9, mac-mini 7/7, techhu-7940 9/9.
+- **Published** by the user from the same tarball. The registry served it after about 2 minutes: `dist-tags.latest` 2.16.0, `dist.shasum` `06a012602da34e90163c81ca83e1934a902693a2`, 47 files, and `npx -y --prefer-online cc-discipline@latest --version` → v2.16.0.
+
+**Attention blocks**:
+- Most installs now carry a `self-check` `.new`, as in every rollout since 2.14.0.
+- `think` `.new`, so the /think change is not active there until merged: MS-01 HUB_Rev1_FW, phenology-twin and soil-twin; mac-mini's two `GS_IC/designs/` installs, which also get `commit` and `summary`; techhu-7940 gem-platform and vini-twin.

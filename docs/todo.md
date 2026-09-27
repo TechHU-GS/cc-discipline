@@ -5,8 +5,7 @@
 
 ## Now
 
-- [ ] Publish 2.15.2 to npm: the user runs `npm publish` in E:\Code\cc-discipline from their own terminal (passkey 2FA); then check `npm view cc-discipline dist-tags.latest` and that the shasum is a8a95d67…, the tarball that was rehearsed and deployed. Tell ziiqii-geosense it is fixed.
-- [ ] Pass on the reply drafted on 2026-09-24 to the ziiqii-geosense session (mac-mini); HUB_Rev1_FW has already removed its worktree.
+- [ ] Pass on the reply drafted on 2026-09-24 to the ziiqii-geosense session (mac-mini), plus the news that the UTF-8 locale fix is 2.15.2, deployed there and on npm; HUB_Rev1_FW has already removed its worktree.
 
 ## Later
 
@@ -15,7 +14,7 @@
 - [ ] git-guard gaps left out of the next release: `switch -f`/`--discard-changes`, `worktree remove --force`, `update-ref -d`, `checkout <commit> <path>` — revisit: after the next release, when each is one rule plus tests.
 - [ ] Move `/self-check`'s project-specific checks out of the framework's SKILL.md into a project-owned file, so a template change stops producing `SKILL.md.new` in every install that has any (about fifteen did in the 2.14.0 rollout) — revisit: after 2.15.0, or the next time the self-check template changes.
 - [ ] A rule that a subagent's findings are leads, not facts: verify the load-bearing ones before stating them (raised from HUB_Rev1_FW, 2026-09-24; in this repo a claude-code-guide agent once fabricated two citations) — revisit: with the held audit items.
-- [ ] Merge the `SKILL.md.new` files the 2.14.0 rollout left beside edited skills: `self-check` in most installs (the new template adds todo.md support), `think` in several, and commit/self-check/summary/think in mac-mini's two `GS_IC/designs/` installs — revisit: the next time work happens in each repository.
+- [ ] Merge the `SKILL.md.new` files the rollouts left beside edited skills: `self-check` in most installs (the new template adds todo.md support); `think` in MS-01 HUB_Rev1_FW, phenology-twin, soil-twin and techhu-7940 gem-platform, vini-twin (until merged, /think there does not ask the /ask-me way); commit/self-check/summary/think in mac-mini's two `GS_IC/designs/` installs — revisit: the next time work happens in each repository.
 - [ ] Install into four active repositories that have their own CLAUDE.md and `.claude/` but no cc-discipline: gsus-pipeline and frost-twin (MS-01), smpp-notif-gateway and gmp-platform (mac-mini). Held back by the user on 2026-09-24 — revisit: the next time work happens in each; review its existing config before appending.
 - [ ] Guard the PowerShell tool: git-guard is registered for `Bash` only and exits 0 for any other tool name, so git run through PowerShell — the primary shell on MS-01 — is never checked. Needs a PowerShell quoting mode in the parser (backtick escapes, `''`, no backslash escapes) and matcher `Bash|PowerShell`; jq-less upgrades never touch an existing settings.json, so MS-01's 10 installs need a scripted edit at rollout. Unverified: that the hook payload's `tool_name` is `PowerShell` — revisit: once the awk parser has shipped.
 - [ ] Explicit error handling for `init.sh`'s `cp` and `rm` steps on Windows, where `set -e` is off, so a partial failure cannot write the new version marker — revisit: when init.sh's install steps next change.
