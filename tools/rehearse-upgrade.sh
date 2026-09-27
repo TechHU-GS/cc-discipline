@@ -13,8 +13,13 @@
 # guard lines "ok", a staleness note, and doctor rc=0.
 OLD="${1:?usage: rehearse-upgrade.sh <old package> <new tarball>}"; NEW="${2:?new tarball}"
 P=$(mktemp -d); cd "$P" || exit 1; git init -q
-npx -y --package="$OLD" cc-discipline init --auto --stack 3 >/dev/null 2>&1 </dev/null
+# --prefer-online: npm's local metadata cache lags a fresh publish, and a version
+# published an hour earlier failed with ETARGET on techhu-7940 (2026-09-28).
+npx -y --prefer-online --package="$OLD" cc-discipline init --auto --stack 3 > init.log 2>&1 </dev/null
 echo "before: $(cat .claude/.cc-discipline-version 2>/dev/null)"
+# Without the old release in place this would rehearse a fresh install, not an
+# upgrade. Checked by the marker, since the oldest releases write no version file.
+[ -f .claude/hooks/streak-breaker.sh ] || { echo "FAIL: $OLD did not install:"; tail -5 init.log; cd /; rm -rf "$P"; exit 1; }
 npx -y --package="$NEW" cc-discipline upgrade > up.log 2>&1 </dev/null; echo "upgrade rc=$?"
 echo "after:  $(cat .claude/.cc-discipline-version 2>/dev/null) · hooks manifest: $(grep -c . .claude/.cc-discipline-hooks.manifest 2>/dev/null) entries · attention block: $(grep -c 'Needs your attention' up.log)"
 G=.claude/hooks/git-guard.sh
