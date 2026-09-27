@@ -28,15 +28,14 @@ State your assessment: "This looks [small/medium/large] because [reason]."
 
 ## Step 2: Understand
 
-Ask 2-3 clarifying questions about the task. Focus on:
+Ask only what Step 0 could not settle. After the research, what is left should be preference and direction, not facts you could have read. A question asked before looking is one the user should never have had to answer. Focus on:
 - What exactly should change? (scope)
 - What should NOT change? (boundaries)
 - How will we know it's done? (success criteria)
 
 Rules:
-- One message, all questions at once (don't drip-feed)
-- Prefer multiple-choice over open-ended when possible
-- Reference what you learned in Step 0 — ask about gaps in your understanding, not things you can read yourself
+- Ask them the `/ask-me` way: a few lines of background from Step 0, then the question tool, with your recommendation first
+- As many questions as the task needs, up to four per call, all at once rather than drip-fed
 - If the task is already crystal clear from Step 0, say so and skip to Step 3
 
 ## Step 3: Propose
@@ -90,6 +89,8 @@ If self-review reveals issues, revise your proposals before presenting. Don't sh
 ## Step 5: Wait
 
 **Stop here. Do not proceed until the user picks an approach or gives a green light.**
+
+Ask for the pick the `/ask-me` way: one question, the approaches from Step 3 as its options, your recommendation first. The write-up from Step 3 is the background. If `/coplan` is stacked, it writes the plan and offers the review first, and the pick comes after.
 
 Do not:
 - Start coding "while waiting"
